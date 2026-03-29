@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SmartCaisse{% endblock %}</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -23,8 +26,8 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">
-                <i class="bi bi-cash-stack me-2"></i>SmartCaisse
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="SmartCaisse" height="35" class="me-2">
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -137,7 +140,8 @@
     <footer class="footer mt-auto py-3 bg-light">
         <div class="container text-center">
             <span class="text-muted">
-                <i class="bi bi-cash-stack me-1"></i>SmartCaisse &copy; 2024 - Gérez vos finances simplement
+                <img src="{{ url_for('static', filename='img/favicon.svg') }}" alt="" height="20" class="me-1">
+                SmartCaisse &copy; 2024 - Gerez vos finances simplement
             </span>
         </div>
     </footer>
