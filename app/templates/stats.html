@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="bi bi-graph-up me-2"></i>Statistiques
+    </h1>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('reports.export_pdf') }}" class="btn btn-outline-primary">
+            <i class="bi bi-file-pdf me-2"></i>Export PDF
+        </a>
+        <a href="{{ url_for('reports.export_pdf_monthly', year=year, month=month) }}" class="btn btn-primary">
+            <i class="bi bi-download me-2"></i>Rapport {{ mois_nom }}
+        </a>
+    </div>
+</div>
+
+<!-- Sélecteur de période -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="month" class="form-label">Mois</label>
+                <select class="form-select" id="month" name="month">
+                    {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ mois_fr[m] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="year" class="form-label">Année</label>
+                <select class="form-select" id="year" name="year">
+                    {% for y in range(2020, 2031) %}
+                    <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel me-2"></i>Voir les statistiques
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cartes résumé -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 stat-card stat-card-success">
+            <div class="card-body text-center">
+                <h6 class="text-muted mb-2">Recettes {{ mois_nom }}</h6>
+                <h3 class="text-success mb-1">{{ "%.0f"|format(total_recettes) }} FCFA</h3>
+                {% if variation_recettes != 0 %}
+                <small class="{% if variation_recettes > 0 %}text-success{% else %}text-danger{% endif %}">
+                    <i class="bi bi-{% if variation_recettes > 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                    {{ "%.1f"|format(variation_recettes|abs) }}% vs mois préc.
+                </small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 stat-card stat-card-danger">
+            <div class="card-body text-center">
+                <h6 class="text-muted mb-2">Dépenses {{ mois_nom }}</h6>
+                <h3 class="text-danger mb-1">{{ "%.0f"|format(total_depenses) }} FCFA</h3>
+                {% if variation_depenses != 0 %}
+                <small class="{% if variation_depenses < 0 %}text-success{% else %}text-danger{% endif %}">
+                    <i class="bi bi-{% if variation_depenses > 0 %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                    {{ "%.1f"|format(variation_depenses|abs) }}% vs mois préc.
+                </small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 stat-card stat-card-primary">
+            <div class="card-body text-center">
+                <h6 class="text-muted mb-2">Bénéfice {{ mois_nom }}</h6>
+                <h3 class="{% if benefice >= 0 %}text-primary{% else %}text-danger{% endif %} mb-1">
+                    {{ "%.0f"|format(benefice) }} FCFA
+                </h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <h6 class="text-muted mb-2">Transactions</h6>
+                <h3 class="text-secondary mb-1">{{ nb_transactions }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Graphiques -->
+<div class="row g-4 mb-4">
+    <!-- Évolution journalière -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up me-2"></i>Évolution journalière - {{ mois_nom }} {{ year }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="dailyChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Camembert Recettes -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart text-success me-2"></i>Répartition des recettes
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if pie_data_recettes['labels'] %}
+                <canvas id="pieRecettes" height="250"></canvas>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    Aucune recette ce mois
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Camembert Dépenses -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart text-danger me-2"></i>Répartition des dépenses
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if pie_data_depenses['labels'] %}
+                <canvas id="pieDepenses" height="250"></canvas>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    Aucune dépense ce mois
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comparaison mois précédent -->
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-arrow-left-right me-2"></i>Comparaison avec le mois précédent
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Recettes mois précédent</h6>
+                        <h4>{{ "%.0f"|format(prev_recettes) }} FCFA</h4>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Dépenses mois précédent</h6>
+                        <h4>{{ "%.0f"|format(prev_depenses) }} FCFA</h4>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Bénéfice mois précédent</h6>
+                        <h4>{{ "%.0f"|format(prev_recettes - prev_depenses) }} FCFA</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Couleurs pour les graphiques
+    const colors = [
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(255, 206, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(199, 199, 199, 0.8)',
+        'rgba(83, 102, 255, 0.8)',
+        'rgba(255, 99, 255, 0.8)',
+        'rgba(99, 255, 132, 0.8)'
+    ];
+
+    // Graphique évolution journalière
+    const dailyData = {{ daily_data | tojson | safe }};
+    new Chart(document.getElementById('dailyChart'), {
+        type: 'line',
+        data: {
+            labels: dailyData.labels,
+            datasets: [
+                {
+                    label: 'Recettes',
+                    data: dailyData.recettes,
+                    borderColor: 'rgb(25, 135, 84)',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Dépenses',
+                    data: dailyData.depenses,
+                    borderColor: 'rgb(220, 53, 69)',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + ' FCFA';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Camembert Recettes
+    {% if pie_data_recettes['labels'] %}
+    new Chart(document.getElementById('pieRecettes'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ pie_data_recettes['labels'] | tojson | safe }},
+            datasets: [{
+                data: {{ pie_data_recettes['values'] | tojson | safe }},
+                backgroundColor: colors
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'right' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${context.label}: ${value.toLocaleString()} FCFA (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Camembert Dépenses
+    {% if pie_data_depenses['labels'] %}
+    new Chart(document.getElementById('pieDepenses'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ pie_data_depenses['labels'] | tojson | safe }},
+            datasets: [{
+                data: {{ pie_data_depenses['values'] | tojson | safe }},
+                backgroundColor: colors
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'right' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${context.label}: ${value.toLocaleString()} FCFA (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

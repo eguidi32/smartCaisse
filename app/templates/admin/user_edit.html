@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier {{ user.username }} - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="mb-4">
+            <a href="{{ url_for('admin.user_detail', id=user.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Retour
+            </a>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h4 class="mb-0">
+                    <i class="bi bi-pencil me-2"></i>Modifier l'utilisateur
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="username" class="form-label fw-medium">
+                            <i class="bi bi-person me-1"></i>Nom d'utilisateur *
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username"
+                               value="{{ user.username }}" required minlength="3">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-medium">
+                            <i class="bi bi-envelope me-1"></i>Email *
+                        </label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               value="{{ user.email }}" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="role" class="form-label fw-medium">
+                            <i class="bi bi-shield me-1"></i>Rôle
+                        </label>
+                        <select class="form-select" id="role" name="role">
+                            <option value="user" {% if user.role == 'user' %}selected{% endif %}>Utilisateur</option>
+                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrateur</option>
+                        </select>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Inscription - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <i class="bi bi-person-plus text-primary" style="font-size: 3rem;"></i>
+                    <h2 class="mt-2">Inscription</h2>
+                    <p class="text-muted">Créez votre compte SmartCaisse</p>
+                </div>
+
+                <form method="POST" action="{{ url_for('auth.register') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="bi bi-person me-1"></i>Nom d'utilisateur
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username"
+                               placeholder="Votre nom d'utilisateur" required minlength="3">
+                        <div class="form-text">Minimum 3 caractères</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <i class="bi bi-envelope me-1"></i>Email
+                        </label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               placeholder="votre@email.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="bi bi-lock me-1"></i>Mot de passe
+                        </label>
+                        <input type="password" class="form-control" id="password" name="password"
+                               placeholder="Créez un mot de passe" required minlength="6">
+                        <div class="form-text">Minimum 6 caractères</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password_confirm" class="form-label">
+                            <i class="bi bi-lock-fill me-1"></i>Confirmer le mot de passe
+                        </label>
+                        <input type="password" class="form-control" id="password_confirm" name="password_confirm"
+                               placeholder="Confirmez votre mot de passe" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <i class="bi bi-person-plus me-2"></i>Créer mon compte
+                    </button>
+                </form>
+
+                <hr>
+
+                <p class="text-center mb-0">
+                    Déjà inscrit ?
+                    <a href="{{ url_for('auth.login') }}">Se connecter</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Mon profil - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h1 class="h3 mb-4">
+            <i class="bi bi-person-circle me-2"></i>Mon profil
+        </h1>
+
+        <div class="row g-4">
+            <!-- Infos -->
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-3">Informations</h6>
+                        <table class="table table-borderless mb-0">
+                            <tr>
+                                <td class="text-muted">Nom d'utilisateur</td>
+                                <td class="fw-medium">{{ current_user.username }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Email</td>
+                                <td>{{ current_user.email }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Rôle</td>
+                                <td>
+                                    {% if current_user.is_admin %}
+                                    <span class="badge bg-warning text-dark">Administrateur</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Utilisateur</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Inscrit le</td>
+                                <td>{{ current_user.created_at.strftime('%d/%m/%Y') }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-3">Actions</h6>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('profile.edit') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil me-2"></i>Modifier mon email
+                            </a>
+                            <a href="{{ url_for('profile.change_password') }}" class="btn btn-outline-warning">
+                                <i class="bi bi-key me-2"></i>Changer mon mot de passe
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if current_user.must_change_password %}
+        <div class="alert alert-warning mt-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Attention !</strong> Vous devez changer votre mot de passe pour des raisons de sécurité.
+            <a href="{{ url_for('profile.change_password') }}" class="alert-link">Changer maintenant</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

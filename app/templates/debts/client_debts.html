@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}{{ client.nom }} - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('debts.list_clients') }}" class="btn btn-outline-secondary btn-sm mb-2">
+            <i class="bi bi-arrow-left me-1"></i>Retour aux clients
+        </a>
+        <h1 class="h3 mb-0">
+            <i class="bi bi-person me-2"></i>{{ client.nom }}
+        </h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('debts.edit_client', id=client.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil me-2"></i>Modifier
+        </a>
+        <a href="{{ url_for('debts.add_dette', client_id=client.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Nouvelle dette
+        </a>
+    </div>
+</div>
+
+<!-- Infos client -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Informations</h6>
+                <p class="mb-2">
+                    <i class="bi bi-telephone me-2 text-primary"></i>{{ client.telephone }}
+                </p>
+                {% if client.adresse %}
+                <p class="mb-0">
+                    <i class="bi bi-geo-alt me-2 text-primary"></i>{{ client.adresse }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Résumé des dettes</h6>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 class="text-danger mb-1">{{ "%.0f"|format(client.total_dette) }}</h4>
+                        <small class="text-muted">Total dû (FCFA)</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-success mb-1">{{ "%.0f"|format(client.total_paye) }}</h4>
+                        <small class="text-muted">Total payé (FCFA)</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-primary mb-1">{{ "%.0f"|format(client.total_restant) }}</h4>
+                        <small class="text-muted">Reste (FCFA)</small>
+                    </div>
+                </div>
+                {% if client.total_dette > 0 %}
+                <div class="progress mt-3" style="height: 10px;">
+                    <div class="progress-bar bg-success" style="width: {{ (client.total_paye / client.total_dette * 100)|int }}%"></div>
+                </div>
+                <small class="text-muted">{{ (client.total_paye / client.total_dette * 100)|int }}% payé</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des dettes -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent">
+        <h5 class="mb-0">
+            <i class="bi bi-list-ul me-2"></i>Dettes de {{ client.nom }}
+        </h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-end">Montant</th>
+                    <th class="text-end">Payé</th>
+                    <th class="text-end">Reste</th>
+                    <th>Statut</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if dettes %}
+                    {% for d in dettes %}
+                    <tr>
+                        <td>{{ d.date.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            <a href="{{ url_for('debts.dette_detail', id=d.id) }}" class="text-decoration-none">
+                                {{ d.description }}
+                            </a>
+                        </td>
+                        <td class="text-end">{{ "%.0f"|format(d.montant_dette) }}</td>
+                        <td class="text-end text-success">{{ "%.0f"|format(d.montant_paye) }}</td>
+                        <td class="text-end text-danger fw-bold">{{ "%.0f"|format(d.montant_restant) }}</td>
+                        <td>
+                            {% if d.est_soldee %}
+                            <span class="badge bg-success">Soldée</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">En cours</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('debts.dette_detail', id=d.id) }}"
+                               class="btn btn-sm btn-outline-primary me-1" title="Voir">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if not d.est_soldee %}
+                            <a href="{{ url_for('debts.add_paiement', dette_id=d.id) }}"
+                               class="btn btn-sm btn-success" title="Payer">
+                                <i class="bi bi-cash"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+                            <p class="text-muted mb-3">Aucune dette pour ce client</p>
+                            <a href="{{ url_for('debts.add_dette', client_id=client.id) }}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Ajouter une dette
+                            </a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Dette #{{ dette.id }} - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('debts.client_detail', id=dette.client.id) }}" class="btn btn-outline-secondary btn-sm mb-2">
+            <i class="bi bi-arrow-left me-1"></i>Retour à {{ dette.client.nom }}
+        </a>
+        <h1 class="h3 mb-0">
+            <i class="bi bi-receipt me-2"></i>{{ dette.description }}
+        </h1>
+    </div>
+    {% if not dette.est_soldee %}
+    <a href="{{ url_for('debts.add_paiement', dette_id=dette.id) }}" class="btn btn-success">
+        <i class="bi bi-cash me-2"></i>Enregistrer un paiement
+    </a>
+    {% endif %}
+</div>
+
+<!-- Infos dette -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Informations</h6>
+                <table class="table table-borderless mb-0">
+                    <tr>
+                        <td class="text-muted">Client</td>
+                        <td class="fw-medium">{{ dette.client.nom }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Date</td>
+                        <td>{{ dette.date.strftime('%d/%m/%Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Statut</td>
+                        <td>
+                            {% if dette.est_soldee %}
+                            <span class="badge bg-success">Soldée</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">En cours</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Montants</h6>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 class="text-danger mb-1">{{ "%.0f"|format(dette.montant_dette) }}</h4>
+                        <small class="text-muted">Total (FCFA)</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-success mb-1">{{ "%.0f"|format(dette.montant_paye) }}</h4>
+                        <small class="text-muted">Payé (FCFA)</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-primary mb-1">{{ "%.0f"|format(dette.montant_restant) }}</h4>
+                        <small class="text-muted">Reste (FCFA)</small>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 15px;">
+                    <div class="progress-bar bg-success" style="width: {{ dette.pourcentage_paye|int }}%">
+                        {{ dette.pourcentage_paye|int }}%
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des paiements -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-list-check me-2"></i>Historique des paiements
+        </h5>
+        {% if not dette.est_soldee %}
+        <a href="{{ url_for('debts.add_paiement', dette_id=dette.id) }}" class="btn btn-sm btn-success">
+            <i class="bi bi-plus me-1"></i>Paiement
+        </a>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th class="text-end">Montant</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if paiements %}
+                    {% for p in paiements %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-calendar me-2 text-muted"></i>
+                            {{ p.date.strftime('%d/%m/%Y') }}
+                        </td>
+                        <td class="text-end">
+                            <span class="badge bg-success fs-6">+{{ "%.0f"|format(p.montant) }} FCFA</span>
+                        </td>
+                        <td class="text-center">
+                            <form action="{{ url_for('debts.delete_paiement', id=p.id) }}"
+                                  method="POST" class="d-inline"
+                                  onsubmit="return confirm('Supprimer ce paiement ?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center py-5">
+                            <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+                            <p class="text-muted mb-0">Aucun paiement enregistré</p>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Zone suppression -->
+<div class="card border-danger mt-4">
+    <div class="card-body">
+        <h6 class="text-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>Zone dangereuse
+        </h6>
+        <p class="text-muted small mb-3">Supprimer cette dette supprimera aussi tous ses paiements.</p>
+        <form action="{{ url_for('debts.delete_dette', id=dette.id) }}"
+              method="POST"
+              onsubmit="return confirm('Supprimer cette dette et tous ses paiements ?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="bi bi-trash me-2"></i>Supprimer cette dette
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

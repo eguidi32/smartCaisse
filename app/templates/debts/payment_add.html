@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Nouveau paiement - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="mb-4">
+            <a href="{{ url_for('debts.dette_detail', id=dette.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Retour
+            </a>
+        </div>
+
+        <!-- Résumé dette -->
+        <div class="alert alert-info mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ dette.client.nom }}</strong> - {{ dette.description }}
+                </div>
+                <div class="text-end">
+                    <div class="small">Reste à payer</div>
+                    <div class="fs-5 fw-bold">{{ "%.0f"|format(dette.montant_restant) }} FCFA</div>
+                </div>
+            </div>
+            <div class="progress mt-2" style="height: 8px;">
+                <div class="progress-bar bg-success" style="width: {{ dette.pourcentage_paye|int }}%"></div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h4 class="mb-0">
+                    <i class="bi bi-cash me-2 text-success"></i>Enregistrer un paiement
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="montant" class="form-label fw-medium">
+                            <i class="bi bi-cash me-1"></i>Montant (FCFA) *
+                        </label>
+                        <input type="number" class="form-control form-control-lg" id="montant" name="montant"
+                               placeholder="0" min="1" max="{{ dette.montant_restant|int }}" step="1" required>
+                        <div class="form-text">Maximum: {{ "%.0f"|format(dette.montant_restant) }} FCFA</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="date" class="form-label fw-medium">
+                            <i class="bi bi-calendar me-1"></i>Date du paiement
+                        </label>
+                        <input type="date" class="form-control" id="date" name="date"
+                               value="{{ today }}" required>
+                    </div>
+
+                    <!-- Boutons rapides -->
+                    <div class="mb-4">
+                        <label class="form-label fw-medium">Montants rapides</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for m in [1000, 2000, 5000, 10000] %}
+                                {% if m <= dette.montant_restant %}
+                                <button type="button" class="btn btn-outline-success quick-amount" data-amount="{{ m }}">
+                                    {{ m }} FCFA
+                                </button>
+                                {% endif %}
+                            {% endfor %}
+                            <button type="button" class="btn btn-success quick-amount" data-amount="{{ dette.montant_restant|int }}">
+                                Tout payer ({{ "%.0f"|format(dette.montant_restant) }})
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Enregistrer le paiement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Boutons montants rapides
+    document.querySelectorAll('.quick-amount').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('montant').value = this.dataset.amount;
+        });
+    });
+</script>
+{% endblock %}

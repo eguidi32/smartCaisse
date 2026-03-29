@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="bi bi-speedometer2 me-2"></i>Tableau de bord
+    </h1>
+    <a href="{{ url_for('transactions.add_transaction') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-2"></i>Nouvelle transaction
+    </a>
+</div>
+
+<!-- Cartes statistiques -->
+<div class="row g-4 mb-4">
+    <!-- Total Recettes -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 stat-card stat-card-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-2">Total Recettes</h6>
+                        <h2 class="mb-0 text-success">{{ "%.2f"|format(total_recettes) }} FCFA</h2>
+                    </div>
+                    <div class="stat-icon bg-success bg-opacity-10 text-success">
+                        <i class="bi bi-arrow-up-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Dépenses -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 stat-card stat-card-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-2">Total Dépenses</h6>
+                        <h2 class="mb-0 text-danger">{{ "%.2f"|format(total_depenses) }} FCFA</h2>
+                    </div>
+                    <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+                        <i class="bi bi-arrow-down-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bénéfice -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 stat-card stat-card-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="text-muted mb-2">Bénéfice Net</h6>
+                        <h2 class="mb-0 {% if benefice >= 0 %}text-primary{% else %}text-danger{% endif %}">
+                            {{ "%.2f"|format(benefice) }} FCFA
+                        </h2>
+                    </div>
+                    <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Graphique -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart me-2"></i>Évolution des 7 derniers jours
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="transactionsChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dernières transactions -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history me-2"></i>Dernières transactions
+                </h5>
+                <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-sm btn-outline-primary">
+                    Voir tout
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% if recent_transactions %}
+                        {% for t in recent_transactions %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-medium">{{ t.description[:25] }}{% if t.description|length > 25 %}...{% endif %}</div>
+                                <small class="text-muted">{{ t.date.strftime('%d/%m/%Y') }}</small>
+                            </div>
+                            <span class="badge {% if t.type == 'recette' %}bg-success{% else %}bg-danger{% endif %}">
+                                {% if t.type == 'recette' %}+{% else %}-{% endif %}{{ "%.0f"|format(t.amount) }}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            Aucune transaction
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Données pour le graphique (passées depuis le backend)
+    const chartData = {{ chart_data | tojson | safe }};
+
+    const ctx = document.getElementById('transactionsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                {
+                    label: 'Recettes',
+                    data: chartData.recettes,
+                    backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                    borderColor: 'rgb(25, 135, 84)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Dépenses',
+                    data: chartData.depenses,
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                    borderColor: 'rgb(220, 53, 69)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' FCFA';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

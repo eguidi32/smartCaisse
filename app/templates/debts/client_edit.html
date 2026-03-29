@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier client - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="mb-4">
+            <a href="{{ url_for('debts.client_detail', id=client.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Retour
+            </a>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h4 class="mb-0">
+                    <i class="bi bi-pencil me-2"></i>Modifier client
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="nom" class="form-label fw-medium">
+                            <i class="bi bi-person me-1"></i>Nom complet *
+                        </label>
+                        <input type="text" class="form-control" id="nom" name="nom"
+                               value="{{ client.nom }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="telephone" class="form-label fw-medium">
+                            <i class="bi bi-telephone me-1"></i>Téléphone *
+                        </label>
+                        <input type="text" class="form-control" id="telephone" name="telephone"
+                               value="{{ client.telephone }}" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="adresse" class="form-label fw-medium">
+                            <i class="bi bi-geo-alt me-1"></i>Adresse
+                        </label>
+                        <input type="text" class="form-control" id="adresse" name="adresse"
+                               value="{{ client.adresse }}">
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Zone suppression -->
+        <div class="card border-danger mt-4">
+            <div class="card-body">
+                <h6 class="text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Zone dangereuse
+                </h6>
+                <p class="text-muted small mb-3">Supprimer ce client supprimera aussi toutes ses dettes et paiements.</p>
+                <form action="{{ url_for('debts.delete_client', id=client.id) }}"
+                      method="POST"
+                      onsubmit="return confirm('Supprimer ce client et toutes ses dettes ?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-trash me-2"></i>Supprimer ce client
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter une transaction - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="mb-4">
+            <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Retour
+            </a>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h4 class="mb-0">
+                    <i class="bi bi-plus-circle me-2"></i>Nouvelle transaction
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <!-- Type de transaction -->
+                    <div class="mb-4">
+                        <label class="form-label fw-medium">Type de transaction</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check flex-fill">
+                                <input class="form-check-input" type="radio" name="type"
+                                       id="type_recette" value="recette" checked>
+                                <label class="form-check-label btn btn-outline-success w-100 text-center py-2"
+                                       for="type_recette">
+                                    <i class="bi bi-arrow-up-circle me-2"></i>Recette
+                                </label>
+                            </div>
+                            <div class="form-check flex-fill">
+                                <input class="form-check-input" type="radio" name="type"
+                                       id="type_depense" value="depense">
+                                <label class="form-check-label btn btn-outline-danger w-100 text-center py-2"
+                                       for="type_depense">
+                                    <i class="bi bi-arrow-down-circle me-2"></i>Dépense
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Montant -->
+                    <div class="mb-3">
+                        <label for="amount" class="form-label fw-medium">
+                            <i class="bi bi-cash me-1"></i>Montant (FCFA)
+                        </label>
+                        <input type="number" class="form-control form-control-lg" id="amount"
+                               name="amount" placeholder="0" min="0" step="0.01" required>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label fw-medium">
+                            <i class="bi bi-card-text me-1"></i>Description
+                        </label>
+                        <input type="text" class="form-control" id="description" name="description"
+                               placeholder="Ex: Vente de marchandises" required maxlength="200">
+                    </div>
+
+                    <!-- Catégorie -->
+                    <div class="mb-3">
+                        <label for="category" class="form-label fw-medium">
+                            <i class="bi bi-tag me-1"></i>Catégorie
+                        </label>
+                        <select class="form-select" id="category" name="category" onchange="toggleCustomCategory()">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Catégorie personnalisée (visible si "Autre" sélectionné) -->
+                    <div class="mb-3" id="custom_category_container" style="display: none;">
+                        <label for="custom_category" class="form-label fw-medium">
+                            <i class="bi bi-pencil me-1"></i>Nouvelle catégorie
+                        </label>
+                        <input type="text" class="form-control" id="custom_category" name="custom_category"
+                               placeholder="Saisissez votre catégorie..." maxlength="50">
+                        <div class="form-text">Cette catégorie sera utilisée pour cette transaction</div>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="mb-4">
+                        <label for="date" class="form-label fw-medium">
+                            <i class="bi bi-calendar me-1"></i>Date
+                        </label>
+                        <input type="date" class="form-control" id="date" name="date"
+                               value="{{ today }}" required>
+                    </div>
+
+                    <!-- Boutons -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Afficher/masquer le champ de catégorie personnalisée
+    function toggleCustomCategory() {
+        const categorySelect = document.getElementById('category');
+        const customContainer = document.getElementById('custom_category_container');
+        const customInput = document.getElementById('custom_category');
+
+        if (categorySelect.value === 'Autre') {
+            customContainer.style.display = 'block';
+            customInput.required = true;
+            customInput.focus();
+        } else {
+            customContainer.style.display = 'none';
+            customInput.required = false;
+            customInput.value = '';
+        }
+    }
+
+    // Style des boutons radio personnalisés
+    document.querySelectorAll('input[name="type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('input[name="type"]').forEach(r => {
+                r.nextElementSibling.classList.remove('active');
+            });
+            if (this.checked) {
+                this.nextElementSibling.classList.add('active');
+            }
+        });
+    });
+
+    // Définir la date par défaut à aujourd'hui si vide
+    if (!document.getElementById('date').value) {
+        document.getElementById('date').valueAsDate = new Date();
+    }
+
+    // Vérifier l'état initial au chargement
+    toggleCustomCategory();
+</script>
+{% endblock %}

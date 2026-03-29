@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="bi bi-list-ul me-2"></i>Mes transactions
+    </h1>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('transactions.export_csv') }}" class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel me-2"></i>CSV
+        </a>
+        <a href="{{ url_for('transactions.add_transaction') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Nouvelle
+        </a>
+    </div>
+</div>
+
+<!-- Résumé filtré -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 bg-success bg-opacity-10">
+            <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                <span class="text-success"><i class="bi bi-arrow-up-circle me-2"></i>Total recettes (filtré)</span>
+                <strong class="text-success">{{ "%.2f"|format(total_recettes) }} FCFA</strong>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 bg-danger bg-opacity-10">
+            <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                <span class="text-danger"><i class="bi bi-arrow-down-circle me-2"></i>Total dépenses (filtré)</span>
+                <strong class="text-danger">{{ "%.2f"|format(total_depenses) }} FCFA</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <!-- Recherche -->
+            <div class="col-md-3">
+                <label for="search" class="form-label">Rechercher</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="search" name="search"
+                           value="{{ search }}" placeholder="Description...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label for="date_debut" class="form-label">Date début</label>
+                <input type="date" class="form-control" id="date_debut" name="date_debut"
+                       value="{{ date_debut }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_fin" class="form-label">Date fin</label>
+                <input type="date" class="form-control" id="date_fin" name="date_fin"
+                       value="{{ date_fin }}">
+            </div>
+            <div class="col-md-2">
+                <label for="type" class="form-label">Type</label>
+                <select class="form-select" id="type" name="type">
+                    <option value="">Tous</option>
+                    <option value="recette" {% if type_filter == 'recette' %}selected{% endif %}>Recettes</option>
+                    <option value="depense" {% if type_filter == 'depense' %}selected{% endif %}>Dépenses</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="category" class="form-label">Catégorie</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">Toutes</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i>
+                </button>
+            </div>
+        </form>
+        {% if search or date_debut or date_fin or type_filter or category_filter %}
+        <div class="mt-2">
+            <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle me-1"></i>Effacer les filtres
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Liste des transactions -->
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Catégorie</th>
+                    <th class="text-end">Montant</th>
+                    <th class="text-center" style="width: 120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if transactions %}
+                    {% for t in transactions %}
+                    <tr>
+                        <td>
+                            <span class="text-muted">
+                                {{ t.date.strftime('%d/%m/%Y') }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="fw-medium">{{ t.description }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                                {{ t.category }}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <span class="fw-bold {% if t.type == 'recette' %}text-success{% else %}text-danger{% endif %}">
+                                {% if t.type == 'recette' %}+{% else %}-{% endif %}{{ "%.2f"|format(t.amount) }} FCFA
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('transactions.edit_transaction', id=t.id) }}"
+                               class="btn btn-sm btn-outline-primary me-1" title="Modifier">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form action="{{ url_for('transactions.delete_transaction', id=t.id) }}"
+                                  method="POST" class="d-inline"
+                                  onsubmit="return confirm('Supprimer cette transaction ?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+                            <p class="text-muted mb-0">Aucune transaction trouvée</p>
+                            <a href="{{ url_for('transactions.add_transaction') }}" class="btn btn-primary mt-3">
+                                <i class="bi bi-plus-circle me-2"></i>Ajouter une transaction
+                            </a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-transparent">
+        <nav aria-label="Pagination">
+            <ul class="pagination justify-content-center mb-0">
+                <!-- Précédent -->
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('transactions.list_transactions', page=pagination.prev_num, search=search, date_debut=date_debut, date_fin=date_fin, type=type_filter, category=category_filter) }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+
+                <!-- Pages -->
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('transactions.list_transactions', page=page_num, search=search, date_debut=date_debut, date_fin=date_fin, type=type_filter, category=category_filter) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Suivant -->
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('transactions.list_transactions', page=pagination.next_num, search=search, date_debut=date_debut, date_fin=date_fin, type=type_filter, category=category_filter) }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <p class="text-center text-muted small mt-2 mb-0">
+            Page {{ pagination.page }} sur {{ pagination.pages }} ({{ pagination.total }} transactions)
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Nouvel utilisateur - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="mb-4">
+            <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Retour
+            </a>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h4 class="mb-0">
+                    <i class="bi bi-person-plus me-2"></i>Créer un utilisateur
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Un mot de passe temporaire sera généré automatiquement.
+                    L'utilisateur devra le changer à sa première connexion.
+                </div>
+
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="username" class="form-label fw-medium">
+                            <i class="bi bi-person me-1"></i>Nom d'utilisateur *
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username"
+                               placeholder="Ex: jean.dupont" required minlength="3">
+                        <div class="form-text">Minimum 3 caractères, sans espaces</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-medium">
+                            <i class="bi bi-envelope me-1"></i>Email *
+                        </label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               placeholder="jean.dupont@email.com" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="role" class="form-label fw-medium">
+                            <i class="bi bi-shield me-1"></i>Rôle
+                        </label>
+                        <select class="form-select" id="role" name="role">
+                            <option value="user" selected>Utilisateur</option>
+                            <option value="admin">Administrateur</option>
+                        </select>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Créer l'utilisateur
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

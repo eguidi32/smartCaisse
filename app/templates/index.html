@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}SmartCaisse - Gérez vos finances simplement{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section text-center">
+    <div class="container">
+        <h1 class="display-4 fw-bold mb-3">
+            <i class="bi bi-cash-stack me-3"></i>SmartCaisse
+        </h1>
+        <p class="lead mb-4">
+            La solution simple et efficace pour gérer vos recettes et dépenses.<br>
+            Dites adieu au cahier manuel !
+        </p>
+        {% if not current_user.is_authenticated %}
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
+                <i class="bi bi-person-plus me-2"></i>Créer un compte gratuit
+            </a>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+            </a>
+        </div>
+        {% else %}
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-light btn-lg">
+            <i class="bi bi-speedometer2 me-2"></i>Accéder au tableau de bord
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Features -->
+<div class="container">
+    <h2 class="text-center mb-5">Pourquoi choisir SmartCaisse ?</h2>
+
+    <div class="row g-4">
+        <!-- Feature 1 -->
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm text-center p-4">
+                <div class="feature-icon bg-primary bg-opacity-10 text-primary mx-auto">
+                    <i class="bi bi-lightning-charge"></i>
+                </div>
+                <h4>Simple et Rapide</h4>
+                <p class="text-muted">
+                    Ajoutez vos transactions en quelques secondes.
+                    Interface intuitive, pas besoin de formation.
+                </p>
+            </div>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm text-center p-4">
+                <div class="feature-icon bg-success bg-opacity-10 text-success mx-auto">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <h4>Statistiques Claires</h4>
+                <p class="text-muted">
+                    Visualisez vos recettes, dépenses et bénéfices
+                    en un coup d'œil grâce aux graphiques.
+                </p>
+            </div>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm text-center p-4">
+                <div class="feature-icon bg-warning bg-opacity-10 text-warning mx-auto">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <h4>Sécurisé</h4>
+                <p class="text-muted">
+                    Vos données sont protégées. Chaque utilisateur
+                    n'accède qu'à ses propres informations.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    {% if not current_user.is_authenticated %}
+    <div class="text-center mt-5 pt-4">
+        <h3 class="mb-3">Prêt à simplifier votre gestion ?</h3>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-rocket-takeoff me-2"></i>Commencer maintenant
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
