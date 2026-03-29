@@ -4,6 +4,4 @@
   <circle cx="8" cy="22" r="2" fill="#ffffff"/>
   <circle cx="16" cy="22" r="2" fill="#ffffff"/>
   <circle cx="24" cy="22" r="2" fill="#ffffff"/>
-  <circle cx="26" y="8" r="6" fill="#198754" stroke="#ffffff" stroke-width="1.5"/>
-  <text x="26" y="11" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="bold">$</text>
 </svg>
