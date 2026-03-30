@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80">
+  <!-- Icone Caisse -->
+  <rect x="10" y="15" width="50" height="50" rx="5" fill="#0d6efd"/>
+  <rect x="17" y="27" width="36" height="18" rx="3" fill="#ffffff"/>
+  <circle cx="25" cy="58" r="3" fill="#ffffff"/>
+  <circle cx="35" cy="58" r="3" fill="#ffffff"/>
+  <circle cx="45" cy="58" r="3" fill="#ffffff"/>
+
+  <!-- Texte SmartCaisse -->
+  <text x="75" y="60" font-family="Arial, sans-serif" font-size="42" font-weight="bold">
+    <tspan fill="#ffffff">Smart</tspan><tspan fill="#5DD65D">Caisse</tspan>
+  </text>
+</svg>
