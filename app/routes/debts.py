@@ -128,7 +128,14 @@ def add_client():
         )
 
         db.session.add(client)
-        db.session.commit()
+        db.session.flush()  # Génère l'ID du client sans faire de commit
+
+        # Générer et sauvegarder le token de confirmation AVANT le commit
+        if client.email:
+            token = client.get_email_confirmation_token()
+            client.email_confirmation_token = token
+
+        db.session.commit()  # Commit final avec le token sauvegardé
 
         # Envoyer email de bienvenue si email fourni
         if client.email:

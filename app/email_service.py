@@ -12,10 +12,10 @@ def send_client_registration_email(client):
     Envoie un email de bienvenue au client avec lien de confirmation
 
     Args:
-        client: Objet Client créé
+        client: Objet Client créé (avec token déjà sauvegardé)
     """
-    # Générer le token de confirmation
-    token = client.get_email_confirmation_token()
+    # Récupérer le token déjà sauvegardé en BDD
+    token = client.email_confirmation_token
     confirmation_url = url_for('debts.confirm_email', token=token, _external=True)
 
     # Mode développement: affichage console
@@ -25,6 +25,7 @@ def send_client_registration_email(client):
         print(f'Destinataire: {client.email}')
         print(f'Client: {client.nom}')
         print(f'Dettes actuelles: {client.total_dette:.2f} FCFA')
+        print(f'Token: {token}')
         print(f'Lien de confirmation: {confirmation_url}')
         print('=' * 70 + '\n')
         return True
