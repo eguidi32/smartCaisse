@@ -1,0 +1,42 @@
+<html>
+  <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #0d6efd; padding: 20px; text-align: center; border-radius: 5px 5px 0 0;">
+        <h1 style="color: white; margin: 0;">SmartCaisse</h1>
+      </div>
+      <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 5px 5px; border: 1px solid #dee2e6; border-top: none;">
+        <p>Bonjour {{ client.nom }},</p>
+        <p>Une nouvelle dette a été enregistrée sur votre compte.</p>
+
+        <div style="margin-top: 20px; background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 3px;">
+          <h3 style="color: #856404; margin-top: 0;">Détails de la dette :</h3>
+          <table style="width: 100%; color: #856404;">
+            <tr>
+              <td style="padding: 8px;"><strong>Description:</strong></td>
+              <td style="padding: 8px; text-align: right;">{{ dette.description }}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px;"><strong>Montant:</strong></td>
+              <td style="padding: 8px; text-align: right; font-size: 18px; font-weight: bold;">{{ "%.2f"|format(dette.montant_dette) }} FCFA</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px;"><strong>Date:</strong></td>
+              <td style="padding: 8px; text-align: right;">{{ dette.date.strftime('%d/%m/%Y') }}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin-top: 20px;">
+          <p style="color: #666; font-size: 14px;">
+            Vous êtes libre de payer cette dette à votre convenance. Chaque paiement effectué sera confirmé par email.
+          </p>
+        </div>
+
+        <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+          Merci de votre confiance,<br>
+          L'équipe SmartCaisse
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -37,6 +37,22 @@
                                value="{{ client.telephone }}" required>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-medium">
+                            <i class="bi bi-envelope me-1"></i>Email
+                            {% if client.email_confirmed %}
+                                <span class="badge bg-success">✓ Confirmé</span>
+                            {% elif client.email %}
+                                <span class="badge bg-warning">⏱ En attente</span>
+                            {% endif %}
+                        </label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               value="{{ client.email or '' }}" placeholder="Ex: client@example.com">
+                        <small class="form-text text-muted d-block mt-1">
+                            L'email sera utilisé pour envoyer les notifications de dettes.
+                        </small>
+                    </div>
+
                     <div class="mb-4">
                         <label for="adresse" class="form-label fw-medium">
                             <i class="bi bi-geo-alt me-1"></i>Adresse

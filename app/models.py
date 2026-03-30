@@ -165,6 +165,12 @@ class Client(db.Model):
     # Clé étrangère vers User
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
+    # Champs pour notifications email
+    email = db.Column(db.String(120), nullable=True)
+    email_confirmed = db.Column(db.Boolean, default=False)
+    email_confirmed_at = db.Column(db.DateTime, nullable=True)
+    email_confirmation_token = db.Column(db.String(256), nullable=True)
+
     # Relation one-to-many avec Dette
     dettes = db.relationship('Dette', backref='client', lazy='dynamic',
                              cascade='all, delete-orphan')
@@ -172,6 +178,7 @@ class Client(db.Model):
     # Contrainte unique: telephone unique par utilisateur
     __table_args__ = (
         db.UniqueConstraint('telephone', 'user_id', name='unique_phone_per_user'),
+        db.UniqueConstraint('email', 'user_id', name='unique_email_per_user'),
     )
 
     @property
@@ -193,6 +200,41 @@ class Client(db.Model):
     def nb_dettes_actives(self):
         """Nombre de dettes non soldées"""
         return sum(1 for d in self.dettes if d.montant_restant > 0)
+
+    def get_email_confirmation_token(self):
+        """Génère un token sécurisé pour confirmation d'email du client"""
+        serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return serializer.dumps(self.email, salt=f'email-confirmation-salt-{self.id}')
+
+    def set_email_confirmed(self):
+        """Marque l'email comme confirmé"""
+        self.email_confirmed = True
+        self.email_confirmed_at = datetime.utcnow()
+        self.email_confirmation_token = None
+
+    @staticmethod
+    def verify_email_confirmation_token(token, client_id, expires_sec=3600):
+        """
+        Vérifie un token de confirmation d'email et retourne le client
+
+        Args:
+            token: Le token à vérifier
+            client_id: L'ID du client pour vérifier le salt
+            expires_sec: Durée de validité en secondes (défaut: 1 heure)
+
+        Returns:
+            Client ou None si le token est invalide/expiré
+        """
+        serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        try:
+            email = serializer.loads(
+                token,
+                salt=f'email-confirmation-salt-{client_id}',
+                max_age=expires_sec
+            )
+        except (SignatureExpired, BadSignature):
+            return None
+        return Client.query.filter_by(id=client_id, email=email).first()
 
     def __repr__(self):
         return f'<Client {self.nom}>'

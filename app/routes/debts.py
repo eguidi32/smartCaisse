@@ -83,6 +83,7 @@ def add_client():
     if request.method == 'POST':
         nom = request.form.get('nom', '').strip()
         telephone = request.form.get('telephone', '').strip()
+        email = request.form.get('email', '').strip()
         adresse = request.form.get('adresse', '').strip()
 
         # Validations
@@ -103,6 +104,15 @@ def add_client():
         if existing:
             errors.append('Ce numéro de téléphone existe déjà.')
 
+        # Vérifier unicité de l'email pour cet utilisateur (si fourni)
+        if email:
+            existing_email = Client.query.filter_by(
+                email=email,
+                user_id=current_user.id
+            ).first()
+            if existing_email:
+                errors.append('Cet email existe déjà pour votre compte.')
+
         if errors:
             for error in errors:
                 flash(error, 'danger')
@@ -112,6 +122,7 @@ def add_client():
         client = Client(
             nom=nom,
             telephone=telephone,
+            email=email if email else None,
             adresse=adresse,
             user_id=current_user.id
         )
@@ -119,7 +130,14 @@ def add_client():
         db.session.add(client)
         db.session.commit()
 
-        flash(f'Client "{nom}" ajouté avec succès !', 'success')
+        # Envoyer email de bienvenue si email fourni
+        if client.email:
+            from app.email_service import send_client_registration_email
+            send_client_registration_email(client)
+            flash(f'Client "{nom}" ajouté avec succès ! Email de bienvenue envoyé.', 'success')
+        else:
+            flash(f'Client "{nom}" ajouté avec succès !', 'success')
+
         return redirect(url_for('debts.list_clients'))
 
     return render_template('debts/client_add.html')
@@ -148,6 +166,7 @@ def edit_client(id):
     if request.method == 'POST':
         nom = request.form.get('nom', '').strip()
         telephone = request.form.get('telephone', '').strip()
+        email = request.form.get('email', '').strip()
         adresse = request.form.get('adresse', '').strip()
 
         errors = []
@@ -168,14 +187,36 @@ def edit_client(id):
         if existing:
             errors.append('Ce numéro de téléphone existe déjà.')
 
+        # Vérifier unicité de l'email (sauf pour ce client)
+        if email:
+            existing_email = Client.query.filter(
+                Client.email == email,
+                Client.user_id == current_user.id,
+                Client.id != id
+            ).first()
+            if existing_email:
+                errors.append('Cet email existe déjà pour votre compte.')
+
         if errors:
             for error in errors:
                 flash(error, 'danger')
             return render_template('debts/client_edit.html', client=client)
 
+        # Déterminer si l'email a changé
+        email_changed = (email != client.email)
+
         client.nom = nom
         client.telephone = telephone
         client.adresse = adresse
+
+        # Si l'email change, réinitialiser la confirmation
+        if email_changed:
+            client.email = email if email else None
+            client.email_confirmed = False
+            client.email_confirmed_at = None
+            client.email_confirmation_token = None
+        else:
+            client.email = email if email else None
 
         db.session.commit()
 
@@ -197,6 +238,38 @@ def delete_client(id):
 
     flash(f'Client "{nom}" supprimé.', 'info')
     return redirect(url_for('debts.list_clients'))
+
+
+@debts_bp.route('/email-confirmation/<token>')
+def confirm_email(token):
+    """
+    Confirme l'email d'un client (public, pas de login requis)
+    Lien de confirmation cliqué par le client
+    """
+    # Chercher le client avec ce token
+    # Il faut parcourir tous les clients car le token contient l'email
+    client = None
+    from itsdangerous import URLSafeTimedSerializer
+
+    for c in Client.query.all():
+        if c.email_confirmation_token == token:
+            # Vérifier que le token est valide
+            verified_client = Client.verify_email_confirmation_token(token, c.id)
+            if verified_client:
+                client = verified_client
+                break
+
+    if not client:
+        flash('Lien de confirmation invalide ou expiré.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    # Confirmer l'email
+    client.set_email_confirmed()
+    db.session.commit()
+
+    flash(f'Email confirmé avec succès ! Vous recevrez désormais les notifications de vos dettes.', 'success')
+    return render_template('debts/email_confirmed.html', client=client)
+
 
 
 # ============================================
@@ -247,6 +320,11 @@ def add_dette(client_id):
 
         db.session.add(dette)
         db.session.commit()
+
+        # Envoyer notification au client si email confirmé
+        if client.email and client.email_confirmed:
+            from app.email_service import send_debt_notification_email
+            send_debt_notification_email(client, dette)
 
         flash(f'Dette de {montant:.0f} FCFA ajoutée pour {client.nom} !', 'success')
         return redirect(url_for('debts.client_detail', id=client_id))
@@ -336,6 +414,12 @@ def add_paiement(dette_id):
 
         db.session.add(paiement)
         db.session.commit()
+
+        # Envoyer confirmation au client si email confirmé
+        client = dette.client
+        if client.email and client.email_confirmed:
+            from app.email_service import send_payment_confirmation_email
+            send_payment_confirmation_email(client, paiement, dette)
 
         # Message de succès
         if dette.montant_restant <= 0:
