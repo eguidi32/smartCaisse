@@ -8,6 +8,6 @@
 
   <!-- Texte SmartCaisse -->
   <text x="75" y="60" font-family="Arial, sans-serif" font-size="42" font-weight="bold">
-    <tspan fill="#ffffff">Smart</tspan><tspan fill="#5DD65D">Caisse</tspan>
+    <tspan fill="#0d6efd">Smart</tspan><tspan fill="#ffffff">Caisse</tspan>
   </text>
 </svg>
