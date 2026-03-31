@@ -54,6 +54,10 @@ class User(UserMixin, db.Model):
     products = db.relationship('Product', backref='user', lazy='dynamic',
                                cascade='all, delete-orphan')
 
+    # Relation one-to-many avec ProductCategory
+    categories = db.relationship('ProductCategory', backref='user', lazy='dynamic',
+                                 cascade='all, delete-orphan')
+
     def set_password(self, password):
         """Hash et stocke le mot de passe de manière sécurisée"""
         self.password_hash = generate_password_hash(password)
@@ -332,9 +336,12 @@ class Product(db.Model):
     Attributs:
         id: Identifiant unique
         name: Nom du produit
+        sku: Code SKU unique (optionnel)
         description: Description optionnelle
         price: Prix du produit (en devise locale)
-        stock: Quantité actuelle en stock (calculée dynamiquement)
+        category_id: Catégorie du produit (optionnel)
+        stock_cache: Cache du stock calculé
+        stock_cache_updated_at: Quand le cache a été mis à jour
         created_at: Date de création
         updated_at: Date de dernière modification
         user_id: Propriétaire du produit (l'utilisateur connecté)
@@ -344,26 +351,42 @@ class Product(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    sku = db.Column(db.String(50), nullable=True)
     description = db.Column(db.String(500), default='')
     price = db.Column(db.Float, nullable=False, default=0.0)
+    stock_cache = db.Column(db.Integer, default=0)
+    stock_cache_updated_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Clé étrangère vers User
+    # Clés étrangères
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('product_categories.id'), nullable=True)
 
     # Relation one-to-many avec StockMovement
     movements = db.relationship('StockMovement', backref='product', lazy='dynamic',
                                 cascade='all, delete-orphan')
 
-    # Contrainte unique: nom unique par utilisateur
+    # Relation avec ProductCategory
+    category = db.relationship('ProductCategory', backref='products')
+
+    # Contraintes uniques et indexes
     __table_args__ = (
         db.UniqueConstraint('name', 'user_id', name='unique_product_name_per_user'),
+        db.UniqueConstraint('sku', 'user_id', name='unique_sku_per_user'),
+        db.Index('idx_product_user', 'user_id'),
     )
 
     @property
     def current_stock(self):
-        """Calcule le stock actual basé sur les mouvements"""
+        """Calcule le stock actuel basé sur les mouvements"""
+        # Vérifier si cache récent (< 5 minutes)
+        if self.stock_cache_updated_at:
+            from datetime import timedelta
+            if datetime.utcnow() - self.stock_cache_updated_at < timedelta(minutes=5):
+                return self.stock_cache
+
+        # Recalculer si cache expiré
         entries = db.session.query(db.func.sum(StockMovement.quantity)).filter_by(
             product_id=self.id, type='entrée'
         ).scalar() or 0
@@ -373,9 +396,9 @@ class Product(db.Model):
         return entries - exits
 
     @property
-    def is_low_stock(self, threshold=5):
-        """Vérifie si le stock est faible (seuil par défaut: 5 unités)"""
-        return self.current_stock <= threshold
+    def is_low_stock(self):
+        """Vérifie si le stock est faible (seuil: 5 unités)"""
+        return self.current_stock <= 5
 
     def __repr__(self):
         return f'<Product {self.name}>'
@@ -391,6 +414,8 @@ class StockMovement(db.Model):
         quantity: Quantité (doit être positive)
         date: Date du mouvement
         notes: Notes optionnelles
+        reason: Raison du mouvement (optionnel)
+        created_by_id: Utilisateur qui a créé le mouvement (optionnel)
         created_at: Date d'enregistrement
         product_id: Produit concerné
     """
@@ -401,10 +426,92 @@ class StockMovement(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
     notes = db.Column(db.String(300), default='')
+    reason = db.Column(db.String(300), default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Clé étrangère vers Product
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
 
+    # Clé étrangère vers User (qui a créé le mouvement)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    # Indexes
+    __table_args__ = (
+        db.Index('idx_stockmove_product', 'product_id'),
+        db.Index('idx_stockmove_created_by', 'created_by_id'),
+    )
+
     def __repr__(self):
         return f'<StockMovement {self.type}: +{self.quantity if self.type == "entrée" else "-" + str(self.quantity)}>'
+
+
+# ============================================
+# MODÈLES POUR CATÉGORIES DE PRODUITS
+# ============================================
+
+class ProductCategory(db.Model):
+    """
+    Modèle pour les catégories de produits
+
+    Attributs:
+        id: Identifiant unique
+        name: Nom de la catégorie
+        description: Description optionnelle
+        user_id: Propriétaire (l'utilisateur connecté)
+        created_at: Date de création
+    """
+    __tablename__ = 'product_categories'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500), default='')
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Contrainte unique: nom unique par utilisateur
+    __table_args__ = (
+        db.UniqueConstraint('name', 'user_id', name='unique_category_name_per_user'),
+    )
+
+    def __repr__(self):
+        return f'<ProductCategory {self.name}>'
+
+
+# ============================================
+# MODÈLES POUR HISTORIQUE DES MODIFICATIONS
+# ============================================
+
+class ProductHistory(db.Model):
+    """
+    Modèle pour tracker les modifications des produits
+
+    Attributs:
+        id: Identifiant unique
+        product_id: Produit modifié
+        action: 'created' ou 'edited'
+        field_changed: Champ modifié (name, price, category, sku)
+        old_value: Ancienne valeur
+        new_value: Nouvelle valeur
+        changed_by_id: Utilisateur qui a effectué le changement
+        changed_at: Quand le changement a été fait
+        reason: Raison du changement (optionnel)
+    """
+    __tablename__ = 'product_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    action = db.Column(db.String(20), nullable=False)  # 'created' ou 'edited'
+    field_changed = db.Column(db.String(50), nullable=False)
+    old_value = db.Column(db.String(300), nullable=True)
+    new_value = db.Column(db.String(300), nullable=True)
+    changed_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    reason = db.Column(db.String(300), nullable=True)
+
+    # Indexes
+    __table_args__ = (
+        db.Index('idx_prodhistory_product', 'product_id'),
+    )
+
+    def __repr__(self):
+        return f'<ProductHistory {self.action} on {self.field_changed}>'

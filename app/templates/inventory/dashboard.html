@@ -13,7 +13,7 @@
                 <i class="bi bi-plus-circle me-1"></i>Ajouter produit
             </a>
             <a href="{{ url_for('inventory.add_stock_movement') }}" class="btn btn-info">
-                <i class="bi bi-arrow-left-right me-1"></i>Mouvement stock
+                <i class="bi bi-arrow-left-right me-1"></i>Mouvement
             </a>
         </div>
     </div>
@@ -31,16 +31,16 @@
         <div class="col-md-3">
             <div class="card bg-info text-white">
                 <div class="card-body">
-                    <h6 class="card-title">Total en stock</h6>
+                    <h6 class="card-title">Total stock</h6>
                     <h2>{{ total_stock }}</h2>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-warning text-white">
+            <div class="card bg-warning text-dark">
                 <div class="card-body">
                     <h6 class="card-title">Stock faible</h6>
-                    <h2>{{ low_stock_products|length }}</h2>
+                    <h2>{{ low_stock_count }}</h2>
                 </div>
             </div>
         </div>
@@ -54,19 +54,23 @@
         </div>
     </div>
 
-    <!-- Produits en stock faible -->
+    <!-- Alerte stock faible -->
     {% if low_stock_products %}
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
-        <h4 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Attention!</h4>
-        <p class="mb-0">{{ low_stock_products|length }} produit(s) ont un stock faible (≤ 5 unités)</p>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <h5 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Stock faible!</h5>
+        <ul class="mb-0">
+            {% for p in low_stock_products %}
+            <li><strong>{{ p.name }}</strong> - {{ p.current_stock }} unités</li>
+            {% endfor %}
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     {% endif %}
 
-    <!-- Liste des produits -->
+    <!-- Produits avec pagination -->
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0">Produits</h5>
+            <h5 class="mb-0">Produits (Page {{ pagination.page }}/{{ pagination.pages }})</h5>
         </div>
         <div class="card-body">
             {% if products %}
@@ -75,8 +79,10 @@
                     <thead class="table-light">
                         <tr>
                             <th>Nom</th>
+                            <th>SKU</th>
+                            <th>Catégorie</th>
                             <th>Prix</th>
-                            <th>Stock actuel</th>
+                            <th>Stock</th>
                             <th>Statut</th>
                             <th>Actions</th>
                         </tr>
@@ -85,6 +91,14 @@
                         {% for product in products %}
                         <tr>
                             <td><strong>{{ product.name }}</strong></td>
+                            <td><small>{{ product.sku or '-' }}</small></td>
+                            <td>
+                                {% if product.category %}
+                                    <span class="badge bg-secondary">{{ product.category.name }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
                             <td>{{ product.price|round(2) }} FCFA</td>
                             <td>
                                 <span class="badge bg-{% if product.current_stock > 5 %}success{% else %}warning{% endif %}">
@@ -92,24 +106,25 @@
                                 </span>
                             </td>
                             <td>
-                                {% if product.current_stock <= 5 %}
-                                    <span class="badge bg-danger">Faible</span>
-                                {% elif product.current_stock == 0 %}
+                                {% if product.current_stock <= 0 %}
                                     <span class="badge bg-dark">Épuisé</span>
+                                {% elif product.current_stock <= 5 %}
+                                    <span class="badge bg-warning">Faible</span>
                                 {% else %}
                                     <span class="badge bg-info">Normal</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('inventory.product_detail', id=product.id) }}" class="btn btn-sm btn-info">
-                                    <i class="bi bi-eye"></i> Détail
+                                <a href="{{ url_for('inventory.product_detail', id=product.id) }}" class="btn btn-sm btn-info" title="Détail">
+                                    <i class="bi bi-eye"></i>
                                 </a>
-                                <a href="{{ url_for('inventory.edit_product', id=product.id) }}" class="btn btn-sm btn-warning">
-                                    <i class="bi bi-pencil"></i> Éditer
+                                <a href="{{ url_for('inventory.edit_product', id=product.id) }}" class="btn btn-sm btn-warning" title="Éditer">
+                                    <i class="bi bi-pencil"></i>
                                 </a>
                                 <form method="POST" action="{{ url_for('inventory.delete_product', id=product.id) }}" style="display:inline;" onsubmit="return confirm('Confirmer la suppression?');">
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        <i class="bi bi-trash"></i> Supp.
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">
+                                        <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
                             </td>
@@ -118,8 +133,41 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination -->
+            {% if pagination.has_prev or pagination.has_next %}
+            <nav aria-label="Pagination">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('inventory.dashboard', page=pagination.prev_num) }}">← Précédent</a>
+                        </li>
+                    {% endif %}
+
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('inventory.dashboard', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('inventory.dashboard', page=pagination.next_num) }}">Suivant →</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
             {% else %}
-            <p class="text-muted text-center py-4">Aucun produit pour le moment</p>
+            <p class="text-muted text-center py-4">Aucun produit - <a href="{{ url_for('inventory.add_product') }}">Ajouter le premier</a></p>
             {% endif %}
         </div>
     </div>
@@ -134,7 +182,7 @@
             <div class="list-group">
                 {% for movement in recent_movements %}
                 <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between">
+                    <div class="d-flex justify-content-between">
                         <div>
                             <h6 class="mb-1">
                                 {{ movement.product.name }}
@@ -142,7 +190,7 @@
                                     {% if movement.type == 'entrée' %}+{% else %}-{% endif %}{{ movement.quantity }}
                                 </span>
                             </h6>
-                            <p class="mb-1 text-muted small">{{ movement.notes }}</p>
+                            {% if movement.reason %}<p class="mb-1 text-muted small">{{ movement.reason }}</p>{% endif %}
                         </div>
                         <small class="text-muted">{{ movement.date.strftime('%d/%m/%Y') }}</small>
                     </div>

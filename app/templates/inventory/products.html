@@ -10,11 +10,38 @@
         </div>
         <div class="col-md-4 text-end">
             <a href="{{ url_for('inventory.add_product') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i>Ajouter produit
+                <i class="bi bi-plus-circle me-1"></i>Ajouter
             </a>
         </div>
     </div>
 
+    <!-- Recherche et filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" name="q" placeholder="Rechercher par nom ou SKU..." value="{{ search_q }}">
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" name="category">
+                        <option value="">-- Toutes catégories --</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if current_category == cat.id %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-info w-100">
+                        <i class="bi bi-search me-1"></i>Chercher
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des produits -->
     {% if products %}
     <div class="row">
         {% for product in products %}
@@ -22,14 +49,13 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">{{ product.name }}</h5>
-                    {% if product.description %}
-                    <p class="card-text text-muted small">{{ product.description[:80] }}{% if product.description|length > 80 %}...{% endif %}</p>
-                    {% endif %}
+                    {% if product.sku %}<p class="card-text small text-muted">SKU: {{ product.sku }}</p>{% endif %}
+                    {% if product.category %}<p class="card-text"><span class="badge bg-secondary">{{ product.category.name }}</span></p>{% endif %}
                     <div class="mb-3">
                         <span class="badge bg-primary">{{ product.price }} FCFA</span>
                     </div>
-                    <div class="mb-3">
-                        <span class="badge bg-{% if product.current_stock > 5 %}success{% elif product.current_stock > 0 %}warning{% else %}danger{% endif %} fs-6">
+                    <div>
+                        <span class="badge bg-{% if product.current_stock > 5 %}success{% else %}warning{% endif %} fs-6">
                             {{ product.current_stock }} unités
                         </span>
                     </div>
@@ -43,10 +69,41 @@
         </div>
         {% endfor %}
     </div>
+
+    <!-- Pagination -->
+    {% if pagination.has_prev or pagination.has_next %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('inventory.list_products', page=pagination.prev_num, q=search_q, category=current_category) }}">← Précédent</a>
+                </li>
+            {% endif %}
+
+            {% for page_num in pagination.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num == pagination.page %}
+                        <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('inventory.list_products', page=page_num, q=search_q, category=current_category) }}">{{ page_num }}</a>
+                        </li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('inventory.list_products', page=pagination.next_num, q=search_q, category=current_category) }}">Suivant →</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
     {% else %}
     <div class="alert alert-info">
         <i class="bi bi-info-circle me-2"></i>
-        Aucun produit créé pour le moment.
+        Aucun produit trouvé.
         <a href="{{ url_for('inventory.add_product') }}" class="alert-link">Ajouter le premier produit</a>
     </div>
     {% endif %}

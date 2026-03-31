@@ -11,9 +11,28 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <div class="mb-3">
                             <label for="name" class="form-label">Nom du produit *</label>
                             <input type="text" class="form-control" id="name" name="name" value="{{ product.name }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="sku" class="form-label">Code SKU</label>
+                            <input type="text" class="form-control" id="sku" name="sku" value="{{ product.sku or '' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label">Catégorie</label>
+                            <select class="form-select" id="category_id" name="category_id">
+                                <option value="">-- Aucune --</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if product.category_id == cat.id %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
 
                         <div class="mb-3">

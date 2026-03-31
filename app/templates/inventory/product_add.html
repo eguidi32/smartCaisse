@@ -11,16 +11,31 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <div class="mb-3">
                             <label for="name" class="form-label">Nom du produit *</label>
                             <input type="text" class="form-control" id="name" name="name" required>
-                            <small class="text-muted">Ex: Sucre, Farine, Huile...</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="sku" class="form-label">Code SKU (optionnel)</label>
+                            <input type="text" class="form-control" id="sku" name="sku" placeholder="Ex: SUCRE_001">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label">Catégorie</label>
+                            <select class="form-select" id="category_id" name="category_id">
+                                <option value="">-- Aucune --</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
 
                         <div class="mb-3">
                             <label for="description" class="form-label">Description</label>
                             <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                            <small class="text-muted">Détails optionnels du produit</small>
                         </div>
 
                         <div class="mb-3">
@@ -30,7 +45,7 @@
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-1"></i>Créer le produit
+                                <i class="bi bi-check-circle me-1"></i>Créer
                             </button>
                             <a href="{{ url_for('inventory.list_products') }}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle me-1"></i>Annuler
@@ -38,11 +53,6 @@
                         </div>
                     </form>
                 </div>
-            </div>
-
-            <div class="alert alert-info mt-3">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Conseil:</strong> Vous pourrez ajouter le stock initial après création du produit.
             </div>
         </div>
     </div>

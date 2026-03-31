@@ -18,26 +18,53 @@
     <!-- Filtres -->
     <div class="card mb-4">
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <h6>Filtrer par type:</h6>
+            <form method="GET" class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Type</label>
                     <div>
-                        <a href="{{ url_for('inventory.stock_history') }}" class="btn btn-sm {% if current_type is none %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        <a href="{{ url_for('inventory.stock_history') }}" class="btn btn-sm {% if not current_type %}btn-primary{% else %}btn-outline-primary{% endif %}">
                             Tous
                         </a>
                         <a href="{{ url_for('inventory.stock_history', type='entrée') }}" class="btn btn-sm {% if current_type == 'entrée' %}btn-success{% else %}btn-outline-success{% endif %}">
-                            📦 Entrées
+                            Entrées
                         </a>
                         <a href="{{ url_for('inventory.stock_history', type='sortie') }}" class="btn btn-sm {% if current_type == 'sortie' %}btn-danger{% else %}btn-outline-danger{% endif %}">
-                            📤 Sorties
+                            Sorties
                         </a>
                     </div>
                 </div>
-            </div>
+
+                <div class="col-md-2">
+                    <label for="product_id" class="form-label">Produit</label>
+                    <select class="form-select form-select-sm" id="product_id" name="product_id">
+                        <option value="">-- Tous --</option>
+                        {% for p in products %}
+                        <option value="{{ p.id }}" {% if current_product == p.id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label for="date_start" class="form-label">Du</label>
+                    <input type="date" class="form-control form-control-sm" id="date_start" name="date_start" value="{{ date_start or '' }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label for="date_end" class="form-label">Au</label>
+                    <input type="date" class="form-control form-control-sm" id="date_end" name="date_end" value="{{ date_end or '' }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-sm btn-info w-100">
+                        <i class="bi bi-search me-1"></i>Filtrer
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- Tableau des mouvements -->
+    <!-- Tableau mouvements -->
     <div class="card">
         <div class="card-body">
             {% if movements %}
@@ -49,7 +76,8 @@
                             <th>Produit</th>
                             <th>Type</th>
                             <th>Quantité</th>
-                            <th>Notes</th>
+                            <th>Raison</th>
+                            <th>Par</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -73,16 +101,46 @@
                                     <span class="text-danger fw-bold">-{{ movement.quantity }}</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <small>{{ movement.notes or '-' }}</small>
-                            </td>
+                            <td><small>{{ movement.reason or '-' }}</small></td>
+                            <td><small>{{ movement.created_by.username if movement.created_by else '-' }}</small></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination -->
+            {% if pagination.has_prev or pagination.has_next %}
+            <nav class="mt-3">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('inventory.stock_history', page=pagination.prev_num, type=current_type, product_id=current_product, date_start=date_start, date_end=date_end) }}">← Précédent</a>
+                        </li>
+                    {% endif %}
+
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                                <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                            {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('inventory.stock_history', page=page_num, type=current_type, product_id=current_product, date_start=date_start, date_end=date_end) }}">{{ page_num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('inventory.stock_history', page=pagination.next_num, type=current_type, product_id=current_product, date_start=date_start, date_end=date_end) }}">Suivant →</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
             {% else %}
-            <p class="text-muted text-center py-5">Aucun mouvement enregistré{% if current_type %} pour ce type{% endif %}</p>
+            <p class="text-muted text-center py-5">Aucun mouvement trouvé</p>
             {% endif %}
         </div>
     </div>

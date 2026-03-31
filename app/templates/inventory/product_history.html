@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Historique {{ product.name }} - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1><i class="bi bi-clock-history me-2"></i>Historique: {{ product.name }}</h1>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('inventory.product_detail', id=product.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+        </div>
+    </div>
+
+    <!-- Historique des modifications -->
+    <div class="card">
+        <div class="card-body">
+            {% if history %}
+            <div class="timeline">
+                {% for entry in history %}
+                <div class="timeline-item mb-4">
+                    <div class="timeline-marker bg-info"></div>
+                    <div class="timeline-content">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">
+                                {% if entry.action == 'created' %}
+                                    <span class="badge bg-success">Création</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Modification</span>
+                                {% endif %}
+                                {{ entry.field_changed }}
+                            </h6>
+                            <small class="text-muted">{{ entry.changed_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+
+                        {% if entry.action == 'created' %}
+                            <p class="mb-2"><span class="text-success">{{ entry.new_value }}</span></p>
+                        {% else %}
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Ancienne valeur:</small>
+                                    <code class="text-danger">{{ entry.old_value or '(vide)' }}</code>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Nouvelle valeur:</small>
+                                    <code class="text-success">{{ entry.new_value or '(vide)' }}</code>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <p class="mb-0 mt-2"><small>Par: <strong>{{ entry.changed_by.username }}</strong></small></p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <style>
+            .timeline {
+                position: relative;
+                padding-left: 0;
+            }
+            .timeline-item {
+                position: relative;
+                padding-left: 40px;
+                border-left: 2px solid #dee2e6;
+                padding-top: 0;
+            }
+            .timeline-marker {
+                position: absolute;
+                left: -12px;
+                top: 0;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                border: 2px solid white;
+            }
+            </style>
+            {% else %}
+            <p class="text-muted text-center py-5">Aucune modification enregistrée</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
