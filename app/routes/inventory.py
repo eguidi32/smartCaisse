@@ -124,8 +124,116 @@ def get_categories():
 
 
 # ============================================
-# GESTION DES PRODUITS
+# GESTION DES CATÉGORIES
 # ============================================
+
+@inventory_bp.route('/categories')
+@login_required
+def list_categories():
+    """Liste des catégories"""
+    categories = get_categories()
+    return render_template('inventory/categories.html', categories=categories)
+
+
+@inventory_bp.route('/category/add', methods=['GET', 'POST'])
+@login_required
+def add_category():
+    """Ajouter une nouvelle catégorie"""
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+
+        if not name:
+            flash('Le nom de la catégorie est requis', 'danger')
+            return redirect(url_for('inventory.add_category'))
+
+        # Vérifier unicité du nom par user
+        existing = ProductCategory.query.filter_by(name=name, user_id=current_user.id).first()
+        if existing:
+            flash('Cette catégorie existe déjà', 'danger')
+            return redirect(url_for('inventory.add_category'))
+
+        try:
+            category = ProductCategory(
+                name=name,
+                description=description,
+                user_id=current_user.id
+            )
+            db.session.add(category)
+            db.session.commit()
+            flash(f'Catégorie "{name}" créée', 'success')
+            return redirect(url_for('inventory.list_categories'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+
+    return render_template('inventory/category_add.html')
+
+
+@inventory_bp.route('/category/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_category(id):
+    """Éditer une catégorie"""
+    category = ProductCategory.query.get_or_404(id)
+
+    if category.user_id != current_user.id:
+        flash('Accès refusé', 'danger')
+        return redirect(url_for('inventory.list_categories'))
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+
+        if not name:
+            flash('Le nom est requis', 'danger')
+            return redirect(url_for('inventory.edit_category', id=id))
+
+        # Vérifier unicité (sauf self)
+        existing = ProductCategory.query.filter_by(name=name, user_id=current_user.id).first()
+        if existing and existing.id != category.id:
+            flash('Ce nom existe déjà', 'danger')
+            return redirect(url_for('inventory.edit_category', id=id))
+
+        try:
+            category.name = name
+            category.description = description
+            db.session.commit()
+            flash(f'Catégorie "{name}" mise à jour', 'success')
+            return redirect(url_for('inventory.list_categories'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+
+    return render_template('inventory/category_edit.html', category=category)
+
+
+@inventory_bp.route('/category/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_category(id):
+    """Supprimer une catégorie"""
+    category = ProductCategory.query.get_or_404(id)
+
+    if category.user_id != current_user.id:
+        flash('Accès refusé', 'danger')
+        return redirect(url_for('inventory.list_categories'))
+
+    # Vérifier que la catégorie n'a pas de produits
+    products_count = Product.query.filter_by(category_id=id).count()
+    if products_count > 0:
+        flash(f'Impossible de supprimer: {products_count} produit(s) utilisent cette catégorie', 'danger')
+        return redirect(url_for('inventory.list_categories'))
+
+    try:
+        name = category.name
+        db.session.delete(category)
+        db.session.commit()
+        flash(f'Catégorie "{name}" supprimée', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur: {str(e)}', 'danger')
+
+    return redirect(url_for('inventory.list_categories'))
+
 
 @inventory_bp.route('/products')
 @login_required
