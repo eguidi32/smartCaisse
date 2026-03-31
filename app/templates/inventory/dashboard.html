@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Inventaire - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1><i class="bi bi-box-seam me-2"></i>Inventaire</h1>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('inventory.add_product') }}" class="btn btn-primary me-2">
+                <i class="bi bi-plus-circle me-1"></i>Ajouter produit
+            </a>
+            <a href="{{ url_for('inventory.add_stock_movement') }}" class="btn btn-info">
+                <i class="bi bi-arrow-left-right me-1"></i>Mouvement stock
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total produits</h6>
+                    <h2>{{ total_products }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total en stock</h6>
+                    <h2>{{ total_stock }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Stock faible</h6>
+                    <h2>{{ low_stock_products|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Derniers mouvements</h6>
+                    <h2>{{ recent_movements|length }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Produits en stock faible -->
+    {% if low_stock_products %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <h4 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Attention!</h4>
+        <p class="mb-0">{{ low_stock_products|length }} produit(s) ont un stock faible (≤ 5 unités)</p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <!-- Liste des produits -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Produits</h5>
+        </div>
+        <div class="card-body">
+            {% if products %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nom</th>
+                            <th>Prix</th>
+                            <th>Stock actuel</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td><strong>{{ product.name }}</strong></td>
+                            <td>{{ product.price|round(2) }} FCFA</td>
+                            <td>
+                                <span class="badge bg-{% if product.current_stock > 5 %}success{% else %}warning{% endif %}">
+                                    {{ product.current_stock }} unités
+                                </span>
+                            </td>
+                            <td>
+                                {% if product.current_stock <= 5 %}
+                                    <span class="badge bg-danger">Faible</span>
+                                {% elif product.current_stock == 0 %}
+                                    <span class="badge bg-dark">Épuisé</span>
+                                {% else %}
+                                    <span class="badge bg-info">Normal</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('inventory.product_detail', id=product.id) }}" class="btn btn-sm btn-info">
+                                    <i class="bi bi-eye"></i> Détail
+                                </a>
+                                <a href="{{ url_for('inventory.edit_product', id=product.id) }}" class="btn btn-sm btn-warning">
+                                    <i class="bi bi-pencil"></i> Éditer
+                                </a>
+                                <form method="POST" action="{{ url_for('inventory.delete_product', id=product.id) }}" style="display:inline;" onsubmit="return confirm('Confirmer la suppression?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i> Supp.
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4">Aucun produit pour le moment</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Derniers mouvements -->
+    {% if recent_movements %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Derniers mouvements</h5>
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                {% for movement in recent_movements %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <div>
+                            <h6 class="mb-1">
+                                {{ movement.product.name }}
+                                <span class="badge bg-{% if movement.type == 'entrée' %}success{% else %}danger{% endif %}">
+                                    {% if movement.type == 'entrée' %}+{% else %}-{% endif %}{{ movement.quantity }}
+                                </span>
+                            </h6>
+                            <p class="mb-1 text-muted small">{{ movement.notes }}</p>
+                        </div>
+                        <small class="text-muted">{{ movement.date.strftime('%d/%m/%Y') }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('inventory.stock_history') }}" class="btn btn-sm btn-outline-secondary mt-3">
+                Voir tout l'historique →
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

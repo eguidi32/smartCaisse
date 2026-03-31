@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Mouvement de stock - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h1 class="mb-4"><i class="bi bi-arrow-left-right me-2"></i>Mouvement de stock</h1>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="product_id" class="form-label">Produit *</label>
+                            <select class="form-select" id="product_id" name="product_id" required>
+                                <option value="">-- Sélectionner un produit --</option>
+                                {% for product in products %}
+                                <option value="{{ product.id }}">
+                                    {{ product.name }} (Stock: {{ product.current_stock }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="type" class="form-label">Type de mouvement *</label>
+                            <select class="form-select" id="type" name="type" required>
+                                <option value="">-- Sélectionner --</option>
+                                <option value="entrée" selected>📦 Entrée (Approvisionnement)</option>
+                                <option value="sortie">📤 Sortie (Vente)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="quantity" class="form-label">Quantité *</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                            <small class="text-muted">Doit être positive</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="date" name="date">
+                            <small class="text-muted">Laisser vide pour aujourd'hui</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes (optionnel)</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                            <small class="text-muted">Ex: Fournisseur XYZ, Lot #123...</small>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Enregistrer
+                            </button>
+                            <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mt-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Important:</strong> Les sorties sont limitées au stock disponible.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -50,6 +50,10 @@ class User(UserMixin, db.Model):
     clients = db.relationship('Client', backref='user', lazy='dynamic',
                               cascade='all, delete-orphan')
 
+    # Relation one-to-many avec Product
+    products = db.relationship('Product', backref='user', lazy='dynamic',
+                               cascade='all, delete-orphan')
+
     def set_password(self, password):
         """Hash et stocke le mot de passe de manière sécurisée"""
         self.password_hash = generate_password_hash(password)
@@ -315,3 +319,92 @@ class Paiement(db.Model):
 
     def __repr__(self):
         return f'<Paiement {self.montant} FCFA>'
+
+
+# ============================================
+# MODÈLES POUR LA GESTION DE STOCK
+# ============================================
+
+class Product(db.Model):
+    """
+    Modèle pour les produits en stock
+
+    Attributs:
+        id: Identifiant unique
+        name: Nom du produit
+        description: Description optionnelle
+        price: Prix du produit (en devise locale)
+        stock: Quantité actuelle en stock (calculée dynamiquement)
+        created_at: Date de création
+        updated_at: Date de dernière modification
+        user_id: Propriétaire du produit (l'utilisateur connecté)
+        movements: Relation vers les mouvements de stock
+    """
+    __tablename__ = 'products'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500), default='')
+    price = db.Column(db.Float, nullable=False, default=0.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Clé étrangère vers User
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # Relation one-to-many avec StockMovement
+    movements = db.relationship('StockMovement', backref='product', lazy='dynamic',
+                                cascade='all, delete-orphan')
+
+    # Contrainte unique: nom unique par utilisateur
+    __table_args__ = (
+        db.UniqueConstraint('name', 'user_id', name='unique_product_name_per_user'),
+    )
+
+    @property
+    def current_stock(self):
+        """Calcule le stock actual basé sur les mouvements"""
+        entries = db.session.query(db.func.sum(StockMovement.quantity)).filter_by(
+            product_id=self.id, type='entrée'
+        ).scalar() or 0
+        exits = db.session.query(db.func.sum(StockMovement.quantity)).filter_by(
+            product_id=self.id, type='sortie'
+        ).scalar() or 0
+        return entries - exits
+
+    @property
+    def is_low_stock(self, threshold=5):
+        """Vérifie si le stock est faible (seuil par défaut: 5 unités)"""
+        return self.current_stock <= threshold
+
+    def __repr__(self):
+        return f'<Product {self.name}>'
+
+
+class StockMovement(db.Model):
+    """
+    Modèle pour les mouvements de stock
+
+    Attributs:
+        id: Identifiant unique
+        type: 'entrée' ou 'sortie'
+        quantity: Quantité (doit être positive)
+        date: Date du mouvement
+        notes: Notes optionnelles
+        created_at: Date d'enregistrement
+        product_id: Produit concerné
+    """
+    __tablename__ = 'stock_movements'
+
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(10), nullable=False)  # 'entrée' ou 'sortie'
+    quantity = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    notes = db.Column(db.String(300), default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Clé étrangère vers Product
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+
+    def __repr__(self):
+        return f'<StockMovement {self.type}: +{self.quantity if self.type == "entrée" else "-" + str(self.quantity)}>'
