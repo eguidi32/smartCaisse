@@ -1,14 +1,21 @@
 """
 Initialisation de l'application SmartCaisse
 - Configuration de Flask
-- Initialisation des extensions (SQLAlchemy, Login, CSRF, Mail)
+- Initialisation des extensions (SQLAlchemy, Login, CSRF, Mail, Talisman, Limiter)
+- Configuration du logging
 - Enregistrement des Blueprints
 """
+import os
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
+from flask_talisman import Talisman
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config import Config
 
 # Initialisation des extensions (sans app pour le pattern factory)
@@ -16,11 +23,58 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 mail = Mail()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 # Configuration de Flask-Login
 login_manager.login_view = 'auth.login'  # Route de redirection si non connecté
 login_manager.login_message = 'Veuillez vous connecter pour accéder à cette page.'
 login_manager.login_message_category = 'warning'
+
+
+def setup_logging(app):
+    """
+    Configure le logging de l'application
+    - RotatingFileHandler pour les logs en production
+    - Console handler pour le développement
+    """
+    # Créer le dossier logs s'il n'existe pas
+    log_dir = os.path.dirname(app.config['LOG_FILE'])
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    
+    # Configuration du niveau de log
+    log_level = Config.get_log_level()
+    
+    # Format des logs
+    formatter = logging.Formatter(
+        '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+    )
+    
+    # Handler fichier (production)
+    if not app.debug:
+        file_handler = RotatingFileHandler(
+            app.config['LOG_FILE'],
+            maxBytes=10240000,  # 10MB
+            backupCount=10
+        )
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(log_level)
+        app.logger.addHandler(file_handler)
+    
+    # Handler console (toujours actif)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(log_level)
+    app.logger.addHandler(console_handler)
+    
+    # Définir le niveau global
+    app.logger.setLevel(log_level)
+    
+    app.logger.info('SmartCaisse startup')
 
 
 def create_app(config_class=Config):
@@ -36,11 +90,24 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # Configuration du logging
+    setup_logging(app)
+
     # Initialisation des extensions avec l'app
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
     mail.init_app(app)
+    limiter.init_app(app)
+    
+    # HTTPS enforcement en production
+    if app.config['FORCE_HTTPS']:
+        Talisman(app, 
+                force_https=True,
+                strict_transport_security=True,
+                strict_transport_security_max_age=31536000,  # 1 an
+                content_security_policy=None)  # Désactivé pour éviter conflits Bootstrap
+        app.logger.info('HTTPS enforcement enabled (Talisman)')
 
     # Import et enregistrement des Blueprints
     from app.routes.auth import auth_bp
@@ -64,6 +131,15 @@ def create_app(config_class=Config):
     # Création des tables si elles n'existent pas
     with app.app_context():
         db.create_all()
+        app.logger.info('Database tables created/verified')
+    
+    # Initialiser le scheduler pour tâches périodiques (seulement en prod)
+    if not app.debug and app.config['FLASK_ENV'] == 'production':
+        try:
+            from app.scheduler import init_scheduler
+            init_scheduler(app)
+        except Exception as e:
+            app.logger.error(f'Failed to initialize scheduler: {e}')
 
     return app
 

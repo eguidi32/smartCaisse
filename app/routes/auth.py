@@ -1,12 +1,13 @@
 """
 Routes d'authentification (login, register, logout, reset password)
+Avec rate limiting pour sécurité
 """
 from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_mail import Message
 from werkzeug.security import generate_password_hash
-from app import db, mail
+from app import db, mail, limiter
 from app.models import User
 
 # Création du Blueprint
@@ -14,6 +15,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit("3 per hour")  # Max 3 tentatives/heure
 def register():
     """Page d'inscription - désactivée, seuls les admins peuvent créer des comptes"""
     flash('L\'inscription publique est désactivée. Contactez un administrateur.', 'warning')
@@ -21,8 +23,9 @@ def register():
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")  # Max 10 tentatives/minute (anti-brute-force)
 def login():
-    """Page de connexion"""
+    """Page de connexion avec rate limiting"""
     if current_user.is_authenticated:
         # Si doit changer le mot de passe, forcer la redirection
         if current_user.must_change_password:
@@ -39,6 +42,7 @@ def login():
         if user and user.check_password(password):
             # Vérifier si le compte est actif
             if not user.is_active:
+                current_app.logger.warning(f'Login attempt on inactive account: {email}')
                 flash('Ce compte a été désactivé. Contactez un administrateur.', 'danger')
                 return render_template('auth/login.html')
 
@@ -47,6 +51,7 @@ def login():
             db.session.commit()
 
             login_user(user, remember=bool(remember))
+            current_app.logger.info(f'User logged in: {user.username} (ID: {user.id})')
             flash(f'Bienvenue, {user.username} !', 'success')
 
             # Si doit changer le mot de passe, forcer la redirection
@@ -58,6 +63,7 @@ def login():
             next_page = request.args.get('next')
             return redirect(next_page or url_for('main.dashboard'))
         else:
+            current_app.logger.warning(f'Failed login attempt for email: {email}')
             flash('Email ou mot de passe incorrect.', 'danger')
 
     return render_template('auth/login.html')
@@ -67,6 +73,7 @@ def login():
 @login_required
 def logout():
     """Déconnexion"""
+    current_app.logger.info(f'User logged out: {current_user.username} (ID: {current_user.id})')
     logout_user()
     flash('Vous avez été déconnecté.', 'info')
     return redirect(url_for('auth.login'))
@@ -141,8 +148,9 @@ L'équipe SmartCaisse
 
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit("5 per hour")  # Max 5 demandes reset/heure (anti-spam)
 def forgot_password():
-    """Page de demande de réinitialisation du mot de passe"""
+    """Page de demande de réinitialisation du mot de passe avec rate limiting"""
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
 
@@ -157,13 +165,16 @@ def forgot_password():
 
         # Toujours afficher le même message (sécurité)
         if user and user.is_active:
+            current_app.logger.info(f'Password reset requested for: {email}')
             if send_reset_email(user):
                 flash('Un email de réinitialisation a été envoyé à votre adresse.', 'success')
             else:
+                current_app.logger.error(f'Failed to send password reset email to: {email}')
                 flash('Erreur lors de l\'envoi de l\'email. Veuillez réessayer.', 'danger')
                 return render_template('auth/forgot_password.html')
         else:
             # Message identique même si l'utilisateur n'existe pas (sécurité)
+            current_app.logger.warning(f'Password reset attempt for non-existent email: {email}')
             flash('Si cette adresse existe, un email de réinitialisation a été envoyé.', 'info')
 
         return redirect(url_for('auth.login'))
