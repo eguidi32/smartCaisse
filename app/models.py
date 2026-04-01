@@ -508,6 +508,9 @@ class ProductHistory(db.Model):
     changed_at = db.Column(db.DateTime, default=datetime.utcnow)
     reason = db.Column(db.String(300), nullable=True)
 
+    # Relations
+    changed_by = db.relationship('User', backref='product_changes')
+
     # Indexes
     __table_args__ = (
         db.Index('idx_prodhistory_product', 'product_id'),
@@ -515,3 +518,121 @@ class ProductHistory(db.Model):
 
     def __repr__(self):
         return f'<ProductHistory {self.action} on {self.field_changed}>'
+
+
+# ============================================
+# MODÈLES POUR LA FACTURATION
+# ============================================
+
+class Invoice(db.Model):
+    """
+    Modèle pour les factures
+
+    Attributs:
+        id: Identifiant unique
+        numero: Numéro de facture (auto-généré, unique par utilisateur)
+        date: Date de la facture
+        client_id: Client associé (optionnel)
+        client_name: Nom du client (stocké pour historique)
+        total: Montant total de la facture
+        status: 'brouillon', 'envoyée', 'payée', 'annulée'
+        notes: Notes optionnelles
+        user_id: Propriétaire de la facture
+        created_at: Date de création
+        paid_at: Date de paiement (si payée)
+    """
+    __tablename__ = 'invoices'
+
+    id = db.Column(db.Integer, primary_key=True)
+    numero = db.Column(db.String(20), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=True)
+    client_name = db.Column(db.String(100), nullable=False)
+    total = db.Column(db.Float, nullable=False, default=0.0)
+    status = db.Column(db.String(20), default='brouillon')  # brouillon, envoyée, payée, annulée
+    notes = db.Column(db.String(500), default='')
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    paid_at = db.Column(db.DateTime, nullable=True)
+
+    # Relations
+    items = db.relationship('InvoiceItem', backref='invoice', lazy='dynamic',
+                            cascade='all, delete-orphan')
+    client = db.relationship('Client', backref='invoices')
+
+    # Contrainte unique: numero unique par utilisateur
+    __table_args__ = (
+        db.UniqueConstraint('numero', 'user_id', name='unique_invoice_number_per_user'),
+        db.Index('idx_invoice_user', 'user_id'),
+        db.Index('idx_invoice_client', 'client_id'),
+    )
+
+    @staticmethod
+    def generate_numero(user_id):
+        """Génère un numéro de facture unique pour l'utilisateur"""
+        from datetime import datetime
+        year = datetime.utcnow().year
+        # Compte les factures existantes pour cet utilisateur cette année
+        count = Invoice.query.filter(
+            Invoice.user_id == user_id,
+            Invoice.numero.like(f'FAC-{year}-%')
+        ).count()
+        return f'FAC-{year}-{count + 1:04d}'
+
+    def calculate_total(self):
+        """Recalcule le total à partir des items"""
+        self.total = sum(item.total for item in self.items)
+        return self.total
+
+    def mark_as_paid(self):
+        """Marque la facture comme payée"""
+        self.status = 'payée'
+        self.paid_at = datetime.utcnow()
+
+    @property
+    def is_editable(self):
+        """Une facture est éditable si elle est en brouillon"""
+        return self.status == 'brouillon'
+
+    def __repr__(self):
+        return f'<Invoice {self.numero}>'
+
+
+class InvoiceItem(db.Model):
+    """
+    Modèle pour les lignes de facture
+
+    Attributs:
+        id: Identifiant unique
+        invoice_id: Facture parente
+        product_id: Produit associé (optionnel, peut être supprimé)
+        product_name: Nom du produit (stocké pour historique)
+        quantity: Quantité
+        unit_price: Prix unitaire
+        total: Total de la ligne (quantity * unit_price)
+    """
+    __tablename__ = 'invoice_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
+    product_name = db.Column(db.String(100), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    unit_price = db.Column(db.Float, nullable=False, default=0.0)
+    total = db.Column(db.Float, nullable=False, default=0.0)
+
+    # Relation avec Product (optionnel)
+    product = db.relationship('Product', backref='invoice_items')
+
+    # Index
+    __table_args__ = (
+        db.Index('idx_invoiceitem_invoice', 'invoice_id'),
+    )
+
+    def calculate_total(self):
+        """Calcule le total de la ligne"""
+        self.total = self.quantity * self.unit_price
+        return self.total
+
+    def __repr__(self):
+        return f'<InvoiceItem {self.product_name} x{self.quantity}>'

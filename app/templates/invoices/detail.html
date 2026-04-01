@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Facture {{ invoice.numero }} - SmartCaisse{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-receipt me-2"></i>Facture {{ invoice.numero }}
+                {% if invoice.status == 'brouillon' %}
+                <span class="badge bg-warning text-dark ms-2">Brouillon</span>
+                {% elif invoice.status == 'envoyée' %}
+                <span class="badge bg-info ms-2">Envoyée</span>
+                {% elif invoice.status == 'payée' %}
+                <span class="badge bg-success ms-2">Payée</span>
+                {% else %}
+                <span class="badge bg-secondary ms-2">{{ invoice.status }}</span>
+                {% endif %}
+            </h2>
+            <p class="text-muted mb-0">Créée le {{ invoice.created_at.strftime('%d/%m/%Y à %H:%M') }}</p>
+        </div>
+        <a href="{{ url_for('invoices.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Retour
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Informations facture -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-1">Date</h6>
+                            <p class="mb-0 fw-medium">{{ invoice.date.strftime('%d/%m/%Y') }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-1">Client</h6>
+                            <p class="mb-0 fw-medium">
+                                {{ invoice.client_name }}
+                                {% if invoice.client %}
+                                <a href="{{ url_for('debts.client_detail', id=invoice.client.id) }}" class="ms-2 small">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Articles -->
+                    <h5 class="mb-3">Articles</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Produit</th>
+                                    <th class="text-center">Quantité</th>
+                                    <th class="text-end">Prix unitaire</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in invoice.items %}
+                                <tr>
+                                    <td>{{ item.product_name }}</td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">{{ "{:,.0f}".format(item.unit_price).replace(",", " ") }} FCFA</td>
+                                    <td class="text-end fw-medium">{{ "{:,.0f}".format(item.total).replace(",", " ") }} FCFA</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">TOTAL:</td>
+                                    <td class="text-end fw-bold fs-5">{{ "{:,.0f}".format(invoice.total).replace(",", " ") }} FCFA</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    {% if invoice.notes %}
+                    <hr>
+                    <h6 class="text-muted mb-2">Notes</h6>
+                    <p class="mb-0">{{ invoice.notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Actions -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('invoices.download_pdf', id=invoice.id) }}" class="btn btn-danger">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>Télécharger PDF
+                        </a>
+                        
+                        {% if invoice.is_editable %}
+                        <a href="{{ url_for('invoices.edit', id=invoice.id) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-pencil me-1"></i>Modifier
+                        </a>
+                        {% endif %}
+                        
+                        {% if invoice.status == 'brouillon' %}
+                        <form action="{{ url_for('invoices.send_invoice', id=invoice.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-info w-100">
+                                <i class="bi bi-send me-1"></i>Marquer envoyée
+                            </button>
+                        </form>
+                        {% endif %}
+                        
+                        {% if invoice.status != 'payée' %}
+                        <form action="{{ url_for('invoices.mark_paid', id=invoice.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-check-circle me-1"></i>Marquer payée
+                            </button>
+                        </form>
+                        {% endif %}
+                        
+                        <hr>
+                        
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="bi bi-trash me-1"></i>Supprimer
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informations -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <small class="text-muted">Créée le:</small>
+                        <small>{{ invoice.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                    </div>
+                    {% if invoice.paid_at %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <small class="text-muted">Payée le:</small>
+                        <small class="text-success">{{ invoice.paid_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                    </div>
+                    {% endif %}
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">Nb articles:</small>
+                        <small>{{ invoice.items.count() }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Supprimer la facture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer la facture <strong>{{ invoice.numero }}</strong> ?</p>
+                <p class="text-danger mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('invoices.delete', id=invoice.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

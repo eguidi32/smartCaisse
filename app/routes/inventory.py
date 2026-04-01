@@ -569,3 +569,49 @@ def stock_history():
                           current_product=product_id,
                           date_start=date_start,
                           date_end=date_end)
+
+
+# ============================================
+# EXPORTS PDF / EXCEL
+# ============================================
+
+@inventory_bp.route('/export/pdf')
+@login_required
+def export_pdf():
+    """Exporter l'inventaire en PDF"""
+    from flask import send_file
+    from app.exports.pdf_generator import PDFGenerator
+    
+    products = Product.query.filter_by(user_id=current_user.id)\
+        .order_by(Product.name).all()
+    
+    generator = PDFGenerator("Inventaire")
+    pdf_buffer = generator.generate_inventory_pdf(products, current_user.username)
+    
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'inventaire_{datetime.now().strftime("%Y%m%d")}.pdf'
+    )
+
+
+@inventory_bp.route('/export/excel')
+@login_required
+def export_excel():
+    """Exporter l'inventaire en Excel"""
+    from flask import send_file
+    from app.exports.excel_generator import ExcelGenerator
+    
+    products = Product.query.filter_by(user_id=current_user.id)\
+        .order_by(Product.name).all()
+    
+    generator = ExcelGenerator("Inventaire")
+    excel_buffer = generator.generate_inventory_excel(products, current_user.username)
+    
+    return send_file(
+        excel_buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'inventaire_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    )

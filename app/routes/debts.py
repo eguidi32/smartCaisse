@@ -455,3 +455,55 @@ def delete_paiement(id):
 
     flash('Paiement supprimé.', 'info')
     return redirect(url_for('debts.dette_detail', id=dette_id))
+
+
+# ============================================
+# EXPORTS PDF / EXCEL
+# ============================================
+
+@debts_bp.route('/export/pdf')
+@login_required
+def export_pdf():
+    """Exporter les dettes en PDF"""
+    from flask import send_file
+    from app.exports.pdf_generator import PDFGenerator
+    
+    clients = Client.query.filter_by(user_id=current_user.id)\
+        .order_by(Client.nom).all()
+    
+    # Filtrer pour ne garder que ceux avec dettes
+    clients_with_debts = [c for c in clients if c.total_dette > 0]
+    
+    generator = PDFGenerator("Dettes clients")
+    pdf_buffer = generator.generate_debts_pdf(clients_with_debts, current_user.username)
+    
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'dettes_{datetime.now().strftime("%Y%m%d")}.pdf'
+    )
+
+
+@debts_bp.route('/export/excel')
+@login_required
+def export_excel():
+    """Exporter les dettes en Excel"""
+    from flask import send_file
+    from app.exports.excel_generator import ExcelGenerator
+    
+    clients = Client.query.filter_by(user_id=current_user.id)\
+        .order_by(Client.nom).all()
+    
+    # Filtrer pour ne garder que ceux avec dettes
+    clients_with_debts = [c for c in clients if c.total_dette > 0]
+    
+    generator = ExcelGenerator("Dettes clients")
+    excel_buffer = generator.generate_debts_excel(clients_with_debts, current_user.username)
+    
+    return send_file(
+        excel_buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'dettes_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    )

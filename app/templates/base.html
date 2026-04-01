@@ -62,6 +62,11 @@
                             <i class="bi bi-box-seam me-1"></i>Inventaire
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and 'invoices' in request.endpoint %}active{% endif %}" href="{{ url_for('invoices.index') }}">
+                            <i class="bi bi-receipt me-1"></i>Factures
+                        </a>
+                    </li>
                 </ul>
 
                 <ul class="navbar-nav">

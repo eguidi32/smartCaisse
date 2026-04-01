@@ -286,3 +286,45 @@ def export_csv():
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment;filename=transactions_{datetime.now().strftime("%Y%m%d")}.csv'}
     )
+
+
+@transactions_bp.route('/export/pdf')
+@login_required
+def export_pdf():
+    """Exporter les transactions en PDF"""
+    from flask import send_file
+    from app.exports.pdf_generator import PDFGenerator
+    
+    transactions = Transaction.query.filter_by(user_id=current_user.id)\
+        .order_by(Transaction.date.desc()).all()
+    
+    generator = PDFGenerator("Transactions")
+    pdf_buffer = generator.generate_transactions_pdf(transactions, current_user.username)
+    
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'transactions_{datetime.now().strftime("%Y%m%d")}.pdf'
+    )
+
+
+@transactions_bp.route('/export/excel')
+@login_required
+def export_excel():
+    """Exporter les transactions en Excel"""
+    from flask import send_file
+    from app.exports.excel_generator import ExcelGenerator
+    
+    transactions = Transaction.query.filter_by(user_id=current_user.id)\
+        .order_by(Transaction.date.desc()).all()
+    
+    generator = ExcelGenerator("Transactions")
+    excel_buffer = generator.generate_transactions_excel(transactions, current_user.username)
+    
+    return send_file(
+        excel_buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'transactions_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    )

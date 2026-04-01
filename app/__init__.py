@@ -118,6 +118,7 @@ def create_app(config_class=Config):
     from app.routes.admin import admin_bp
     from app.routes.profile import profile_bp
     from app.routes.inventory import inventory_bp
+    from app.routes.invoices import bp as invoices_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -127,6 +128,7 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(inventory_bp)
+    app.register_blueprint(invoices_bp)
 
     # Création des tables si elles n'existent pas
     with app.app_context():
