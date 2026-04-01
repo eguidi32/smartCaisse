@@ -245,7 +245,7 @@ def download_pdf(id):
     invoice = Invoice.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     
     generator = PDFGenerator(f"Facture {invoice.numero}")
-    pdf_buffer = generator.generate_invoice_pdf(invoice)
+    pdf_buffer = generator.generate_invoice_pdf(invoice, current_user)
     
     return send_file(
         pdf_buffer,

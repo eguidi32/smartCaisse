@@ -29,6 +29,16 @@ class User(UserMixin, db.Model):
         created_at: Date de création du compte
         last_login: Dernière connexion
         transactions: Relation vers les transactions de l'utilisateur
+        
+        Détails entreprise (pour factures professionnelles):
+        company_name: Nom de l'entreprise
+        company_address: Adresse de l'entreprise
+        company_phone: Téléphone de l'entreprise
+        company_email: Email de l'entreprise
+        company_website: Site web
+        company_registration: Numéro d'enregistrement/SIRET
+        company_tax_id: Numéro de taxe
+        company_logo_url: URL du logo (optionnel)
     """
     __tablename__ = 'users'
 
@@ -41,6 +51,16 @@ class User(UserMixin, db.Model):
     must_change_password = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
+    
+    # Détails entreprise pour factures
+    company_name = db.Column(db.String(150), nullable=True)
+    company_address = db.Column(db.String(300), nullable=True)
+    company_phone = db.Column(db.String(20), nullable=True)
+    company_email = db.Column(db.String(120), nullable=True)
+    company_website = db.Column(db.String(150), nullable=True)
+    company_registration = db.Column(db.String(50), nullable=True)
+    company_tax_id = db.Column(db.String(50), nullable=True)
+    company_logo_url = db.Column(db.String(300), nullable=True)
 
     # Relation one-to-many avec Transaction
     transactions = db.relationship('Transaction', backref='user', lazy='dynamic',

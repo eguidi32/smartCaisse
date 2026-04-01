@@ -222,32 +222,66 @@ class PDFGenerator:
         buffer.seek(0)
         return buffer
     
-    def generate_invoice_pdf(self, invoice):
-        """Génère un PDF de facture"""
+    def generate_invoice_pdf(self, invoice, user=None):
+        """Génère un PDF de facture professionnel"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
                                rightMargin=2*cm, leftMargin=2*cm,
                                topMargin=2*cm, bottomMargin=2*cm)
         elements = []
         
-        # En-tête facture
-        elements.append(Paragraph("FACTURE", self.styles['CustomTitle']))
-        elements.append(Paragraph(f"N° {invoice.numero}", self.styles['CustomSubtitle']))
-        elements.append(Spacer(1, 10))
+        # En-tête avec infos entreprise
+        header_data = [
+            [
+                Paragraph(f"<font size=16><b>FACTURE</b></font>", self.styles['Normal']),
+                Paragraph(f"<font size=10 align=right><b>{invoice.numero}</b></font>", self.styles['Normal'])
+            ]
+        ]
+        header_table = Table(header_data, colWidths=[10*cm, 6*cm])
+        header_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        elements.append(header_table)
         
-        # Infos client et date
-        info_data = [
+        # Infos entreprise (si disponible)
+        if user and user.company_name:
+            elements.append(Spacer(1, 10))
+            company_info = f"<b>{user.company_name}</b>"
+            if user.company_address:
+                company_info += f"<br/>{user.company_address}"
+            if user.company_phone or user.company_email:
+                company_info += "<br/>"
+                if user.company_phone:
+                    company_info += f"Tél: {user.company_phone}"
+                if user.company_email:
+                    company_info += f" | Email: {user.company_email}"
+            if user.company_registration or user.company_tax_id:
+                company_info += "<br/><font size=8>"
+                if user.company_registration:
+                    company_info += f"RCCM: {user.company_registration} "
+                if user.company_tax_id:
+                    company_info += f"IFU: {user.company_tax_id}"
+                company_info += "</font>"
+            
+            elements.append(Paragraph(company_info, self.styles['Normal']))
+        
+        elements.append(Spacer(1, 20))
+        
+        # Infos facture et client
+        invoice_data = [
             ['Date:', invoice.date.strftime('%d/%m/%Y'), 'Client:', invoice.client_name],
             ['Statut:', invoice.status.capitalize(), '', '']
         ]
-        info_table = Table(info_data, colWidths=[3*cm, 5*cm, 3*cm, 5*cm])
-        info_table.setStyle(TableStyle([
+        invoice_table = Table(invoice_data, colWidths=[3*cm, 5*cm, 3*cm, 5*cm])
+        invoice_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
         ]))
-        elements.append(info_table)
+        elements.append(invoice_table)
         elements.append(Spacer(1, 20))
         
         # Tableau des articles
@@ -271,12 +305,12 @@ class PDFGenerator:
             elements.append(Spacer(1, 20))
             elements.append(Paragraph(f"<b>Notes:</b> {invoice.notes}", self.styles['Normal']))
         
-        # Pied de page
+        # Pied de page professionnel
         elements.append(Spacer(1, 40))
-        elements.append(Paragraph(
-            f"Généré par SmartCaisse le {datetime.now().strftime('%d/%m/%Y à %H:%M')}",
-            self.styles['CustomSubtitle']
-        ))
+        footer_text = f"Facture générée par SmartCaisse le {datetime.now().strftime('%d/%m/%Y à %H:%M')}"
+        if user and user.company_website:
+            footer_text += f" | {user.company_website}"
+        elements.append(Paragraph(footer_text, self.styles['CustomSubtitle']))
         
         doc.build(elements)
         buffer.seek(0)

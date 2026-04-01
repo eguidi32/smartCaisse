@@ -57,38 +57,21 @@ def change_password():
     return render_template('profile/change_password.html')
 
 
-@profile_bp.route('/edit', methods=['GET', 'POST'])
+@profile_bp.route('/company', methods=['GET', 'POST'])
 @login_required
-def edit():
-    """Modifier son profil"""
+def edit_company():
+    """Éditer les détails de l'entreprise"""
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-
-        errors = []
-
-        # Vérifier le mot de passe pour confirmer l'identité
-        if not current_user.check_password(password):
-            errors.append('Mot de passe incorrect.')
-
-        if not email or '@' not in email:
-            errors.append('Email invalide.')
-
-        # Vérifier unicité de l'email
-        from app.models import User
-        existing = User.query.filter(User.email == email, User.id != current_user.id).first()
-        if existing:
-            errors.append('Cet email est déjà utilisé.')
-
-        if errors:
-            for error in errors:
-                flash(error, 'danger')
-            return render_template('profile/edit.html')
-
-        current_user.email = email
+        current_user.company_name = request.form.get('company_name', '').strip() or None
+        current_user.company_address = request.form.get('company_address', '').strip() or None
+        current_user.company_phone = request.form.get('company_phone', '').strip() or None
+        current_user.company_email = request.form.get('company_email', '').strip() or None
+        current_user.company_website = request.form.get('company_website', '').strip() or None
+        current_user.company_registration = request.form.get('company_registration', '').strip() or None
+        current_user.company_tax_id = request.form.get('company_tax_id', '').strip() or None
+        
         db.session.commit()
-
-        flash('Profil modifié avec succès !', 'success')
+        flash('Détails de l\'entreprise mis à jour avec succès !', 'success')
         return redirect(url_for('profile.index'))
-
-    return render_template('profile/edit.html')
+    
+    return render_template('profile/edit_company.html')
