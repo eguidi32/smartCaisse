@@ -57,6 +57,29 @@ def change_password():
     return render_template('profile/change_password.html')
 
 
+@profile_bp.route('/edit', methods=['GET', 'POST'])
+@login_required
+def edit():
+    """Modifier email et informations personnelles"""
+    if request.method == 'POST':
+        new_email = request.form.get('email', '').strip()
+
+        # Vérifier que l'email n'existe pas déjà
+        if new_email and new_email != current_user.email:
+            from app.models import User
+            existing_user = User.query.filter_by(email=new_email).first()
+            if existing_user:
+                flash('Cet email est déjà utilisé.', 'danger')
+                return render_template('profile/edit.html')
+
+        current_user.email = new_email
+        db.session.commit()
+        flash('Email modifié avec succès !', 'success')
+        return redirect(url_for('profile.index'))
+
+    return render_template('profile/edit.html')
+
+
 @profile_bp.route('/company', methods=['GET', 'POST'])
 @login_required
 def edit_company():
@@ -69,9 +92,9 @@ def edit_company():
         current_user.company_website = request.form.get('company_website', '').strip() or None
         current_user.company_registration = request.form.get('company_registration', '').strip() or None
         current_user.company_tax_id = request.form.get('company_tax_id', '').strip() or None
-        
+
         db.session.commit()
         flash('Détails de l\'entreprise mis à jour avec succès !', 'success')
         return redirect(url_for('profile.index'))
-    
+
     return render_template('profile/edit_company.html')

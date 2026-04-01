@@ -4,43 +4,35 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-5">
-        <div class="mb-4">
-            <a href="{{ url_for('profile.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-2"></i>Retour
-            </a>
-        </div>
+    <div class="col-md-6">
+        <h1 class="h3 mb-4">
+            <i class="bi bi-pencil me-2"></i>Modifier mon email
+        </h1>
 
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-transparent">
-                <h4 class="mb-0">
-                    <i class="bi bi-pencil me-2 text-primary"></i>Modifier mon email
-                </h4>
-            </div>
             <div class="card-body">
                 <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {{ csrf_token() }}
 
                     <div class="mb-3">
-                        <label for="email" class="form-label fw-medium">
-                            <i class="bi bi-envelope me-1"></i>Nouvel email *
-                        </label>
-                        <input type="email" class="form-control" id="email" name="email"
-                               value="{{ current_user.email }}" required>
+                        <label for="email" class="form-label">Nouvel email</label>
+                        <input
+                            type="email"
+                            class="form-control"
+                            id="email"
+                            name="email"
+                            value="{{ current_user.email }}"
+                            required
+                        >
+                        <small class="text-muted">Votre email personnel</small>
                     </div>
 
-                    <div class="mb-4">
-                        <label for="password" class="form-label fw-medium">
-                            <i class="bi bi-lock me-1"></i>Mot de passe actuel *
-                        </label>
-                        <input type="password" class="form-control" id="password"
-                               name="password" required>
-                        <div class="form-text">Pour confirmer ce changement</div>
-                    </div>
-
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-check-circle me-2"></i>Enregistrer
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <a href="{{ url_for('profile.index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>Valider
                         </button>
                     </div>
                 </form>
