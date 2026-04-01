@@ -240,19 +240,26 @@ class PDFGenerator:
         shop_name = (user.company_name if user and user.company_name else
                      (user.username if user else 'SmartCaisse'))
 
-        # En-tête avec boutique, titre facture et numéro
+        # En-tête: FACTURE au-dessus et centré
+        title_data = [[Paragraph(f"<font size=18><b>FACTURE</b></font>", self.styles['Normal'])]]
+        title_table = Table(title_data, colWidths=[16*cm])
+        title_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+        ]))
+        elements.append(title_table)
+
+        # Infos boutique et numéro
         header_data = [
             [
                 Paragraph(f"<font size=12><b>{shop_name}</b></font>", self.styles['Normal']),
-                Paragraph(f"<font size=16><b>FACTURE</b></font>", self.styles['Normal']),
                 Paragraph(f"<b>{invoice.numero}</b>", self.styles['RightAligned'])
             ]
         ]
-        header_table = Table(header_data, colWidths=[5*cm, 7*cm, 4*cm])
+        header_table = Table(header_data, colWidths=[12*cm, 4*cm])
         header_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
-            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
         ]))
         elements.append(header_table)
