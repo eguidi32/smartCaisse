@@ -39,6 +39,12 @@ class PDFGenerator:
             textColor=colors.HexColor('#7f8c8d')
         ))
         self.styles.add(ParagraphStyle(
+            name='RightAligned',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            alignment=TA_RIGHT
+        ))
+        self.styles.add(ParagraphStyle(
             name='TableHeader',
             parent=self.styles['Normal'],
             fontSize=10,
@@ -234,7 +240,7 @@ class PDFGenerator:
         header_data = [
             [
                 Paragraph(f"<font size=16><b>FACTURE</b></font>", self.styles['Normal']),
-                Paragraph(f"<font size=10 align=right><b>{invoice.numero}</b></font>", self.styles['Normal'])
+                Paragraph(f"<b>{invoice.numero}</b>", self.styles['RightAligned'])
             ]
         ]
         header_table = Table(header_data, colWidths=[10*cm, 6*cm])
