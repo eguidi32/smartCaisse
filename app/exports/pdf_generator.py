@@ -235,23 +235,29 @@ class PDFGenerator:
                                rightMargin=2*cm, leftMargin=2*cm,
                                topMargin=2*cm, bottomMargin=2*cm)
         elements = []
-        
-        # En-tête avec infos entreprise
+
+        # Nom de la boutique (company_name ou username)
+        shop_name = (user.company_name if user and user.company_name else
+                     (user.username if user else 'SmartCaisse'))
+
+        # En-tête avec boutique, titre facture et numéro
         header_data = [
             [
+                Paragraph(f"<font size=12><b>{shop_name}</b></font>", self.styles['Normal']),
                 Paragraph(f"<font size=16><b>FACTURE</b></font>", self.styles['Normal']),
                 Paragraph(f"<b>{invoice.numero}</b>", self.styles['RightAligned'])
             ]
         ]
-        header_table = Table(header_data, colWidths=[10*cm, 6*cm])
+        header_table = Table(header_data, colWidths=[5*cm, 7*cm, 4*cm])
         header_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
         ]))
         elements.append(header_table)
-        
-        # Infos entreprise (si disponible)
+
+        # Infos entreprise supplémentaires (si disponible)
         if user and user.company_name:
             elements.append(Spacer(1, 10))
             company_info = f"<b>{user.company_name}</b>"
