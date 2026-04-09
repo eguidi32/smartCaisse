@@ -18,8 +18,14 @@ try:
     TALISMAN_AVAILABLE = True
 except ImportError:
     TALISMAN_AVAILABLE = False
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    LIMITER_AVAILABLE = True
+except ImportError:
+    LIMITER_AVAILABLE = False
+    Limiter = None
 from config import Config
 
 # Initialisation des extensions (sans app pour le pattern factory)
@@ -27,11 +33,16 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 csrf = CSRFProtect()
 mail = Mail()
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
-)
+
+# Rate limiter (optional - graceful degradation if not available)
+if LIMITER_AVAILABLE:
+    limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+else:
+    limiter = None
 
 # Configuration de Flask-Login
 login_manager.login_view = 'auth.login'  # Route de redirection si non connecté
@@ -102,7 +113,8 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     csrf.init_app(app)
     mail.init_app(app)
-    limiter.init_app(app)
+    if LIMITER_AVAILABLE and limiter:
+        limiter.init_app(app)
     
     # HTTPS enforcement en production
     if TALISMAN_AVAILABLE and app.config['FORCE_HTTPS']:

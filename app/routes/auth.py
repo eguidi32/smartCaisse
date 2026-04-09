@@ -13,9 +13,18 @@ from app.models import User
 # Création du Blueprint
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+# Helper decorator for rate limiting (gracefully handles when limiter is not available)
+def rate_limit(limit_string):
+    """Decorator that applies rate limiting only if limiter is available"""
+    def decorator(f):
+        if limiter:
+            return limiter.limit(limit_string)(f)
+        return f
+    return decorator
+
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
-@limiter.limit("3 per hour")  # Max 3 tentatives/heure
+@rate_limit("3 per hour")  # Max 3 tentatives/heure
 def register():
     """Page d'inscription - désactivée, seuls les admins peuvent créer des comptes"""
     flash('L\'inscription publique est désactivée. Contactez un administrateur.', 'warning')
@@ -23,7 +32,7 @@ def register():
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")  # Max 10 tentatives/minute (anti-brute-force)
+@rate_limit("10 per minute")  # Max 10 tentatives/minute (anti-brute-force)
 def login():
     """Page de connexion avec rate limiting"""
     if current_user.is_authenticated:
@@ -148,7 +157,7 @@ L'équipe SmartCaisse
 
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
-@limiter.limit("5 per hour")  # Max 5 demandes reset/heure (anti-spam)
+@rate_limit("5 per hour")  # Max 5 demandes reset/heure (anti-spam)
 def forgot_password():
     """Page de demande de réinitialisation du mot de passe avec rate limiting"""
     if current_user.is_authenticated:
