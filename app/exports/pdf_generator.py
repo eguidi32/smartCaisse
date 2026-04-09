@@ -143,7 +143,7 @@ class PDFGenerator:
     def _add_movements_section(self, elements, products, limit_per_product=5):
         """Ajoute la section des mouvements de stock au PDF"""
         # Vérifier s'il y a des mouvements
-        has_movements = any(product.stock_movements for product in products)
+        has_movements = any(product.movements.count() > 0 for product in products)
 
         if not has_movements:
             return
@@ -153,7 +153,10 @@ class PDFGenerator:
         elements.append(Spacer(1, 10))
 
         for product in products:
-            if product.stock_movements:
+            # Charger les mouvements (lazy='dynamic')
+            movements = product.movements.all()
+
+            if movements:
                 # Titre du produit
                 elements.append(Paragraph(f"<b>{product.name}</b> (SKU: {product.sku or '-'})",
                                         self.styles['Normal']))
@@ -162,7 +165,7 @@ class PDFGenerator:
                 data = [['Date', 'Type', 'Quantité', 'Notes']]
 
                 # Trier par date décroissante et limiter
-                movements_sorted = sorted(product.stock_movements,
+                movements_sorted = sorted(movements,
                                         key=lambda x: x.date,
                                         reverse=True)[:limit_per_product]
 
