@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h2 mb-0">
+                <i class="fas fa-history"></i> Audit Logs
+            </h1>
+            <p class="text-muted">Traçabilité complète de toutes les actions critiques</p>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Action</label>
+                    <select name="action" class="form-select">
+                        <option value="">-- Tous --</option>
+                        {% for action in all_actions %}
+                            <option value="{{ action }}" {% if action_filter == action %}selected{% endif %}>
+                                {{ action }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Entité</label>
+                    <select name="entity" class="form-select">
+                        <option value="">-- Tous --</option>
+                        {% for entity in all_entities %}
+                            <option value="{{ entity }}" {% if entity_filter == entity %}selected{% endif %}>
+                                {{ entity }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Utilisateur</label>
+                    <select name="user" class="form-select">
+                        <option value="">-- Tous --</option>
+                        {% for user in all_users %}
+                            <option value="{{ user.id }}" {% if user_filter == user.id %}selected{% endif %}>
+                                {{ user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Statut</label>
+                    <select name="status" class="form-select">
+                        <option value="">-- Tous --</option>
+                        <option value="success" {% if status_filter == 'success' %}selected{% endif %}>Succès</option>
+                        <option value="error" {% if status_filter == 'error' %}selected{% endif %}>Erreur</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Filtrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tableau des audit logs -->
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 15%">Timestamp</th>
+                        <th style="width: 10%">Utilisateur</th>
+                        <th style="width: 10%">Action</th>
+                        <th style="width: 10%">Entité</th>
+                        <th style="width: 8%">ID</th>
+                        <th style="width: 15%">IP / Endpoint</th>
+                        <th style="width: 10%">Statut</th>
+                        <th style="width: 22%">Détails</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if logs %}
+                        {% for log in logs %}
+                            <tr>
+                                <td class="text-nowrap">
+                                    <small>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                                </td>
+                                <td>
+                                    {% if log.user %}
+                                        <span class="badge bg-info">{{ log.user.username }}</span>
+                                    {% else %}
+                                        <span class="text-muted">System</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code>{{ log.action }}</code>
+                                </td>
+                                <td>
+                                    <code>{{ log.entity_type }}</code>
+                                </td>
+                                <td>
+                                    {% if log.entity_id %}
+                                        <code>#{{ log.entity_id }}</code>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ log.ip_address or '-' }}<br>
+                                        <code class="d-block">{{ log.endpoint or '-' }}</code>
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if log.status == 'success' %}
+                                        <span class="badge bg-success">Succès</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Erreur</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>
+                                        {% if log.reason %}
+                                            <div class="text-truncate" title="{{ log.reason }}">
+                                                {{ log.reason[:50] }}{% if log.reason|length > 50 %}...{% endif %}
+                                            </div>
+                                        {% endif %}
+                                        {% if log.new_value %}
+                                            <div class="text-muted text-truncate" title="Nouvelle valeur: {{ log.new_value }}">
+                                                <strong>Nouveau:</strong> {{ log.new_value[:40] }}{% if log.new_value|length > 40 %}...{% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </small>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox"></i> Aucun audit log trouvé
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.audit_logs', page=pagination.prev_num, action=action_filter, entity=entity_filter, user=user_filter, status=status_filter) }}">
+                            Précédent
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Précédent</span>
+                    </li>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num == pagination.page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.audit_logs', page=page_num, action=action_filter, entity=entity_filter, user=user_filter, status=status_filter) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.audit_logs', page=pagination.next_num, action=action_filter, entity=entity_filter, user=user_filter, status=status_filter) }}">
+                            Suivant
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Suivant</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+
+{% endblock %}

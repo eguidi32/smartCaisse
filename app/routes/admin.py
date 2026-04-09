@@ -13,7 +13,7 @@ from flask_mail import Message
 from datetime import datetime
 from sqlalchemy import func
 from app import db, mail
-from app.models import User, Transaction, Client, Dette, Paiement
+from app.models import User, Transaction, Client, Dette, Paiement, AuditLog
 from app.utils import log_audit
 
 # Création du Blueprint
@@ -244,6 +244,61 @@ def dashboard():
                            total_depenses=total_depenses,
                            total_dettes=total_dettes,
                            total_clients=total_clients)
+
+
+# ============================================
+# AUDIT LOGS
+# ============================================
+
+@admin_bp.route('/audit-logs')
+@admin_required
+def audit_logs():
+    """Liste des audit logs avec filtrage et recherche"""
+    page = request.args.get('page', 1, type=int)
+    action_filter = request.args.get('action', '')
+    entity_filter = request.args.get('entity', '')
+    user_filter = request.args.get('user', None, type=int)
+    status_filter = request.args.get('status', '')
+
+    query = AuditLog.query
+
+    # Appliquer les filtres
+    if action_filter:
+        query = query.filter(AuditLog.action == action_filter)
+
+    if entity_filter:
+        query = query.filter(AuditLog.entity_type == entity_filter)
+
+    if user_filter:
+        query = query.filter(AuditLog.user_id == user_filter)
+
+    if status_filter in ['success', 'error']:
+        query = query.filter(AuditLog.status == status_filter)
+
+    # Pagination et tri
+    pagination = query.order_by(AuditLog.timestamp.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+
+    # Récupérer les filtres disponibles pour les dropdowns
+    all_actions = db.session.query(AuditLog.action).distinct().order_by(AuditLog.action).all()
+    all_actions = [a[0] for a in all_actions]
+
+    all_entities = db.session.query(AuditLog.entity_type).distinct().order_by(AuditLog.entity_type).all()
+    all_entities = [e[0] for e in all_entities]
+
+    all_users = User.query.order_by(User.username).all()
+
+    return render_template('admin/audit_logs.html',
+                           pagination=pagination,
+                           logs=pagination.items,
+                           action_filter=action_filter,
+                           entity_filter=entity_filter,
+                           user_filter=user_filter,
+                           status_filter=status_filter,
+                           all_actions=all_actions,
+                           all_entities=all_entities,
+                           all_users=all_users)
 
 
 # ============================================
