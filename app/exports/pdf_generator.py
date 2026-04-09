@@ -91,19 +91,22 @@ class PDFGenerator:
         return table
     
     def generate_inventory_pdf(self, products, user_name=""):
-        """Génère un PDF de l'inventaire"""
+        """Génère un PDF de l'inventaire avec produits et mouvements de stock"""
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, 
+        doc = SimpleDocTemplate(buffer, pagesize=A4,
                                rightMargin=2*cm, leftMargin=2*cm,
                                topMargin=2*cm, bottomMargin=2*cm)
         elements = []
-        
+
         self._create_header(elements, f"Inventaire de {user_name}" if user_name else "Inventaire complet")
-        
+
+        # Section 1: Résumé du stock
+        elements.append(Paragraph("<b>Résumé du Stock</b>", self.styles['Heading2']))
+
         # Données du tableau
         data = [['Produit', 'SKU', 'Catégorie', 'Prix', 'Stock', 'Valeur']]
         total_value = 0
-        
+
         for product in products:
             stock = product.current_stock
             value = stock * product.price
@@ -116,23 +119,65 @@ class PDFGenerator:
                 str(stock),
                 f"{value:.0f} FCFA"
             ])
-        
+
         # Ligne total
         data.append(['', '', '', '', 'TOTAL:', f"{total_value:.0f} FCFA"])
-        
+
         table = self._create_table(data, col_widths=[5*cm, 2.5*cm, 3*cm, 2.5*cm, 1.5*cm, 3*cm])
         elements.append(table)
-        
+
         # Résumé
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 15))
         elements.append(Paragraph(
             f"<b>Nombre de produits:</b> {len(products)} | <b>Valeur totale du stock:</b> {total_value:.0f} FCFA",
             self.styles['Normal']
         ))
-        
+
+        # Section 2: Mouvements de stock
+        self._add_movements_section(elements, products)
+
         doc.build(elements)
         buffer.seek(0)
         return buffer
+
+    def _add_movements_section(self, elements, products, limit_per_product=5):
+        """Ajoute la section des mouvements de stock au PDF"""
+        # Vérifier s'il y a des mouvements
+        has_movements = any(product.stock_movements for product in products)
+
+        if not has_movements:
+            return
+
+        elements.append(Spacer(1, 30))
+        elements.append(Paragraph("<b>Mouvements de Stock</b>", self.styles['Heading2']))
+        elements.append(Spacer(1, 10))
+
+        for product in products:
+            if product.stock_movements:
+                # Titre du produit
+                elements.append(Paragraph(f"<b>{product.name}</b> (SKU: {product.sku or '-'})",
+                                        self.styles['Normal']))
+
+                # Tableau des mouvements
+                data = [['Date', 'Type', 'Quantité', 'Notes']]
+
+                # Trier par date décroissante et limiter
+                movements_sorted = sorted(product.stock_movements,
+                                        key=lambda x: x.date,
+                                        reverse=True)[:limit_per_product]
+
+                for move in movements_sorted:
+                    type_label = "Entrée" if move.type == 'entrée' else "Sortie"
+                    data.append([
+                        move.date.strftime("%d/%m/%Y"),
+                        type_label,
+                        str(move.quantity),
+                        move.notes or '-'
+                    ])
+
+                table = self._create_table(data, col_widths=[2.8*cm, 2.5*cm, 2*cm, 5*cm])
+                elements.append(table)
+                elements.append(Spacer(1, 12))
     
     def generate_debts_pdf(self, clients, user_name=""):
         """Génère un PDF des dettes clients"""
