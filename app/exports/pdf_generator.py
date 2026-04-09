@@ -91,7 +91,7 @@ class PDFGenerator:
         return table
     
     def generate_inventory_pdf(self, products, user_name=""):
-        """Génère un PDF de l'inventaire avec produits et mouvements de stock"""
+        """Génère un PDF de l'inventaire"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
                                rightMargin=2*cm, leftMargin=2*cm,
@@ -99,9 +99,6 @@ class PDFGenerator:
         elements = []
 
         self._create_header(elements, f"Inventaire de {user_name}" if user_name else "Inventaire complet")
-
-        # Section 1: Résumé du stock
-        elements.append(Paragraph("<b>Résumé du Stock</b>", self.styles['Heading2']))
 
         # Données du tableau
         data = [['Produit', 'SKU', 'Catégorie', 'Prix', 'Stock', 'Valeur']]
@@ -127,47 +124,49 @@ class PDFGenerator:
         elements.append(table)
 
         # Résumé
-        elements.append(Spacer(1, 15))
+        elements.append(Spacer(1, 20))
         elements.append(Paragraph(
             f"<b>Nombre de produits:</b> {len(products)} | <b>Valeur totale du stock:</b> {total_value:.0f} FCFA",
             self.styles['Normal']
         ))
 
-        # Section 2: Mouvements de stock
-        self._add_movements_section(elements, products)
-
         doc.build(elements)
         buffer.seek(0)
         return buffer
 
-    def _add_movements_section(self, elements, products, limit_per_product=5):
-        """Ajoute la section des mouvements de stock au PDF"""
+    def generate_movements_pdf(self, products, user_name=""):
+        """Génère un PDF des mouvements de stock"""
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4,
+                               rightMargin=2*cm, leftMargin=2*cm,
+                               topMargin=2*cm, bottomMargin=2*cm)
+        elements = []
+
+        self._create_header(elements, f"Mouvements de Stock de {user_name}" if user_name else "Mouvements de Stock")
+
         # Vérifier s'il y a des mouvements
         has_movements = any(product.movements.count() > 0 for product in products)
 
         if not has_movements:
-            return
+            elements.append(Paragraph("Aucun mouvement de stock enregistré.", self.styles['Normal']))
+            doc.build(elements)
+            buffer.seek(0)
+            return buffer
 
-        elements.append(Spacer(1, 30))
-        elements.append(Paragraph("<b>Mouvements de Stock</b>", self.styles['Heading2']))
-        elements.append(Spacer(1, 10))
-
+        # Pour chaque produit avec mouvements
         for product in products:
-            # Charger les mouvements (lazy='dynamic')
             movements = product.movements.all()
 
             if movements:
                 # Titre du produit
-                elements.append(Paragraph(f"<b>{product.name}</b> (SKU: {product.sku or '-'})",
+                elements.append(Paragraph(f"<b>{product.name}</b> (SKU: {product.sku or '-'}, Stock: {product.current_stock})",
                                         self.styles['Normal']))
 
                 # Tableau des mouvements
                 data = [['Date', 'Type', 'Quantité', 'Notes']]
 
-                # Trier par date décroissante et limiter
-                movements_sorted = sorted(movements,
-                                        key=lambda x: x.date,
-                                        reverse=True)[:limit_per_product]
+                # Trier par date décroissante
+                movements_sorted = sorted(movements, key=lambda x: x.date, reverse=True)
 
                 for move in movements_sorted:
                     type_label = "Entrée" if move.type == 'entrée' else "Sortie"
@@ -180,7 +179,11 @@ class PDFGenerator:
 
                 table = self._create_table(data, col_widths=[2.8*cm, 2.5*cm, 2*cm, 5*cm])
                 elements.append(table)
-                elements.append(Spacer(1, 12))
+                elements.append(Spacer(1, 15))
+
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
     
     def generate_debts_pdf(self, clients, user_name=""):
         """Génère un PDF des dettes clients"""

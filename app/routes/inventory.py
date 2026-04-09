@@ -581,18 +581,39 @@ def export_pdf():
     """Exporter l'inventaire en PDF"""
     from flask import send_file
     from app.exports.pdf_generator import PDFGenerator
-    
+
     products = Product.query.filter_by(user_id=current_user.id)\
         .order_by(Product.name).all()
-    
+
     generator = PDFGenerator("Inventaire")
     pdf_buffer = generator.generate_inventory_pdf(products, current_user.username)
-    
+
     return send_file(
         pdf_buffer,
         mimetype='application/pdf',
         as_attachment=True,
         download_name=f'inventaire_{datetime.now().strftime("%Y%m%d")}.pdf'
+    )
+
+
+@inventory_bp.route('/movements/export/pdf')
+@login_required
+def export_movements_pdf():
+    """Exporter les mouvements de stock en PDF"""
+    from flask import send_file
+    from app.exports.pdf_generator import PDFGenerator
+
+    products = Product.query.filter_by(user_id=current_user.id)\
+        .order_by(Product.name).all()
+
+    generator = PDFGenerator("Mouvements de Stock")
+    pdf_buffer = generator.generate_movements_pdf(products, current_user.username)
+
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'mouvements_stock_{datetime.now().strftime("%Y%m%d")}.pdf'
     )
 
 
