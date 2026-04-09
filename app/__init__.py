@@ -115,6 +115,13 @@ def create_app(config_class=Config):
     mail.init_app(app)
     if LIMITER_AVAILABLE and limiter:
         limiter.init_app(app)
+
+    # Ajouter csrf_token manuellement au contexte de template (fallback Flask-WTF)
+    @app.context_processor
+    def inject_csrf_token():
+        """Inject CSRF token into template context"""
+        from flask_wtf.csrf import generate_csrf
+        return dict(csrf_token=generate_csrf)
     
     # HTTPS enforcement en production
     if TALISMAN_AVAILABLE and app.config['FORCE_HTTPS']:
@@ -150,8 +157,18 @@ def create_app(config_class=Config):
 
     # Création des tables si elles n'existent pas
     with app.app_context():
-        db.create_all()
-        app.logger.info('Database tables created/verified')
+        # Only create tables if they don't exist (check for a key table)
+        # This prevents unnecessary recreations on every app startup
+        try:
+            from app.models import AuditLog
+            # If we can query the table, it exists
+            AuditLog.query.first()
+            app.logger.info('Database tables already exist')
+        except Exception:
+            # Tables don't exist, create them
+            db.create_all()
+            app.logger.info('Database tables created')
+
     
     # Initialiser le scheduler pour tâches périodiques (désactivé en production PythonAnywhere)
     # PythonAnywhere gère les tâches planifiées via son propre système de tâches
