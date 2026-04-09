@@ -13,7 +13,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
-from flask_talisman import Talisman
+try:
+    from flask_talisman import Talisman
+    TALISMAN_AVAILABLE = True
+except ImportError:
+    TALISMAN_AVAILABLE = False
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import Config
@@ -101,13 +105,15 @@ def create_app(config_class=Config):
     limiter.init_app(app)
     
     # HTTPS enforcement en production
-    if app.config['FORCE_HTTPS']:
-        Talisman(app, 
+    if TALISMAN_AVAILABLE and app.config['FORCE_HTTPS']:
+        Talisman(app,
                 force_https=True,
                 strict_transport_security=True,
                 strict_transport_security_max_age=31536000,  # 1 an
                 content_security_policy=None)  # Désactivé pour éviter conflits Bootstrap
         app.logger.info('HTTPS enforcement enabled (Talisman)')
+    elif app.config['FORCE_HTTPS']:
+        app.logger.warning('HTTPS enforcement requested but Talisman not available')
 
     # Import et enregistrement des Blueprints
     from app.routes.auth import auth_bp
