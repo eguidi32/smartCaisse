@@ -135,13 +135,14 @@ def create_app(config_class=Config):
         db.create_all()
         app.logger.info('Database tables created/verified')
     
-    # Initialiser le scheduler pour tâches périodiques (seulement en prod)
-    if not app.debug and app.config['FLASK_ENV'] == 'production':
-        try:
-            from app.scheduler import init_scheduler
-            init_scheduler(app)
-        except Exception as e:
-            app.logger.error(f'Failed to initialize scheduler: {e}')
+    # Initialiser le scheduler pour tâches périodiques (désactivé en production PythonAnywhere)
+    # PythonAnywhere gère les tâches planifiées via son propre système de tâches
+    # if not app.debug and app.config['FLASK_ENV'] == 'production':
+    #     try:
+    #         from app.scheduler import init_scheduler
+    #         init_scheduler(app)
+    #     except Exception as e:
+    #         app.logger.error(f'Failed to initialize scheduler: {e}')
 
     return app
 
