@@ -157,7 +157,7 @@ class PDFGenerator:
                     'date': move.date,
                     'type': move.type,
                     'quantity': move.quantity,
-                    'notes': move.notes or '-'
+                    'notes': move.notes or ''
                 })
 
         # Vérifier s'il y a des mouvements
@@ -171,7 +171,7 @@ class PDFGenerator:
         all_movements.sort(key=lambda x: x['date'], reverse=True)
 
         # Tableau complet des mouvements
-        data = [['Date', 'Produit', 'Code', 'Type', 'Quantité', 'Prix Unit.', 'Valeur', 'Notes']]
+        data = [['Date', 'Produit', 'Code', 'Type', 'Quantité', 'Prix Unit.', 'Valeur']]
 
         for move in all_movements:
             type_label = "Entrée" if move['type'] == 'entrée' else "Sortie"
@@ -182,14 +182,25 @@ class PDFGenerator:
                 move['product_name'],
                 move['sku'],
                 type_label,
-                str(move['quantity']),
+                f"{move['quantity']}",
                 f"{move['price']:.0f}",
-                f"{valeur:.0f}",
-                move['notes'][:25] if len(move['notes']) > 25 else move['notes']
+                f"{valeur:.0f}"
             ])
 
         table = self._create_movements_table(data)
         elements.append(table)
+
+        # Notes additionelles si existent
+        has_notes = any(move['notes'] for move in all_movements)
+        if has_notes:
+            elements.append(Spacer(1, 15))
+            elements.append(Paragraph("<b>Observations:</b>", self.styles['Normal']))
+            for move in all_movements:
+                if move['notes']:
+                    elements.append(Paragraph(
+                        f"• {move['date'].strftime('%d/%m/%Y')} - {move['product_name']}: {move['notes']}",
+                        self.styles['Normal']
+                    ))
 
         # Footer
         elements.append(Spacer(1, 15))
@@ -204,7 +215,7 @@ class PDFGenerator:
 
     def _create_movements_table(self, data):
         """Crée le tableau des mouvements avec coloration - optimisé pour lisibilité"""
-        table = Table(data, colWidths=[1.7*cm, 3.2*cm, 1.7*cm, 1.7*cm, 1.6*cm, 1.7*cm, 1.8*cm, 1.8*cm])
+        table = Table(data, colWidths=[1.8*cm, 3.5*cm, 1.8*cm, 1.8*cm, 1.8*cm, 1.9*cm, 1.9*cm])
 
         # Créer le style du tableau
         style_list = [
