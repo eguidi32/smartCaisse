@@ -9,6 +9,7 @@ from flask_mail import Message
 from werkzeug.security import generate_password_hash
 from app import db, mail, limiter
 from app.models import User
+from app.utils import log_audit
 
 # Création du Blueprint
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -61,6 +62,10 @@ def login():
 
             login_user(user, remember=bool(remember))
             current_app.logger.info(f'User logged in: {user.username} (ID: {user.id})')
+
+            # Logger l'action
+            log_audit('login', 'User', entity_id=user.id, status='success')
+
             flash(f'Bienvenue, {user.username} !', 'success')
 
             # Si doit changer le mot de passe, forcer la redirection
@@ -73,6 +78,10 @@ def login():
             return redirect(next_page or url_for('main.dashboard'))
         else:
             current_app.logger.warning(f'Failed login attempt for email: {email}')
+
+            # Logger l'action (échec de connexion)
+            log_audit('login', 'User', reason=f'Failed login for email: {email}', status='error')
+
             flash('Email ou mot de passe incorrect.', 'danger')
 
     return render_template('auth/login.html')
@@ -82,7 +91,13 @@ def login():
 @login_required
 def logout():
     """Déconnexion"""
-    current_app.logger.info(f'User logged out: {current_user.username} (ID: {current_user.id})')
+    user_id = current_user.id
+    username = current_user.username
+    current_app.logger.info(f'User logged out: {username} (ID: {user_id})')
+
+    # Logger l'action avant de déconnecter l'utilisateur
+    log_audit('logout', 'User', entity_id=user_id, status='success')
+
     logout_user()
     flash('Vous avez été déconnecté.', 'info')
     return redirect(url_for('auth.login'))

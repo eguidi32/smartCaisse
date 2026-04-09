@@ -10,6 +10,7 @@ from datetime import datetime
 from sqlalchemy import func
 from app import db
 from app.models import Client, Dette, Paiement
+from app.utils import log_audit
 
 # Création du Blueprint
 debts_bp = Blueprint('debts', __name__, url_prefix='/debts')
@@ -422,6 +423,9 @@ def add_paiement(dette_id):
         db.session.add(paiement)
         db.session.commit()
 
+        # Logger l'action
+        log_audit('create', 'Payment', entity_id=paiement.id, new_value=f'montant={montant}, dette_id={dette.id}')
+
         # Envoyer confirmation au client si email confirmé
         client = dette.client
         if client.email and client.email_confirmed:
@@ -452,6 +456,9 @@ def delete_paiement(id):
     dette_id = paiement.dette_id
     db.session.delete(paiement)
     db.session.commit()
+
+    # Logger l'action
+    log_audit('delete', 'Payment', entity_id=id, new_value=f'deleted_paiement_id={id}')
 
     flash('Paiement supprimé.', 'info')
     return redirect(url_for('debts.dette_detail', id=dette_id))

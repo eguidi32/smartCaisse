@@ -541,6 +541,59 @@ class ProductHistory(db.Model):
 
 
 # ============================================
+# MODÈLE POUR AUDIT LOGS
+# ============================================
+
+class AuditLog(db.Model):
+    """
+    Modèle pour les audit logs - traçabilité des actions critiques
+
+    Attributs:
+        id: Identifiant unique
+        user_id: ID de l'utilisateur qui a effectué l'action
+        action: Type d'action (create, update, delete, login, logout, reset_password)
+        entity_type: Type d'entité (User, Transaction, Debt, Payment, Product, Invoice)
+        entity_id: ID de l'entité modifiée
+        old_value: Ancienne valeur (pour les updates)
+        new_value: Nouvelle valeur (pour les updates)
+        ip_address: Adresse IP du client
+        method: HTTP method (POST, GET, DELETE, etc)
+        endpoint: Route de l'action (ex: /admin/users/add)
+        status: 'success' ou 'error'
+        reason: Notes optionnelles (ex: raison de l'erreur)
+        timestamp: Date/heure de l'action
+    """
+    __tablename__ = 'audit_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    action = db.Column(db.String(50), nullable=False)  # create, update, delete, login, logout, etc
+    entity_type = db.Column(db.String(50), nullable=False)  # User, Transaction, Debt, Payment, etc
+    entity_id = db.Column(db.Integer, nullable=True)
+    old_value = db.Column(db.String(500), nullable=True)
+    new_value = db.Column(db.String(500), nullable=True)
+    ip_address = db.Column(db.String(50), nullable=True)
+    method = db.Column(db.String(10), nullable=True)  # POST, GET, DELETE, etc
+    endpoint = db.Column(db.String(200), nullable=True)  # Route name
+    status = db.Column(db.String(20), default='success')  # success or error
+    reason = db.Column(db.String(500), nullable=True)  # Error details or notes
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relation
+    user = db.relationship('User', backref='audit_logs')
+
+    # Index pour performance
+    __table_args__ = (
+        db.Index('idx_audit_user', 'user_id'),
+        db.Index('idx_audit_timestamp', 'timestamp'),
+        db.Index('idx_audit_entity', 'entity_type', 'entity_id'),
+    )
+
+    def __repr__(self):
+        return f'<AuditLog {self.action} {self.entity_type}#{self.entity_id} by {self.user_id}>'
+
+
+# ============================================
 # MODÈLES POUR LA FACTURATION
 # ============================================
 

@@ -14,6 +14,7 @@ from datetime import datetime
 from sqlalchemy import func
 from app import db, mail
 from app.models import User, Transaction, Client, Dette, Paiement
+from app.utils import log_audit
 
 # Création du Blueprint
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -334,6 +335,9 @@ def add_user():
         db.session.add(user)
         db.session.commit()
 
+        # Logger l'action
+        log_audit('create', 'User', entity_id=user.id, new_value=f'username={username}, role={role}')
+
         # Envoyer l'email de bienvenue avec les identifiants
         if send_welcome_email(user, temp_password):
             flash(f'Utilisateur "{username}" créé avec succès ! Un email avec les identifiants a été envoyé.', 'success')
@@ -417,6 +421,9 @@ def edit_user(id):
 
         db.session.commit()
 
+        # Logger l'action
+        log_audit('update', 'User', entity_id=id, new_value=f'username={username}, role={role}')
+
         flash('Utilisateur modifié avec succès !', 'success')
         return redirect(url_for('admin.user_detail', id=id))
 
@@ -438,6 +445,10 @@ def toggle_user(id):
     db.session.commit()
 
     status = 'activé' if user.is_active else 'désactivé'
+
+    # Logger l'action
+    log_audit('update', 'User', entity_id=id, new_value=f'is_active={user.is_active}')
+
     flash(f'Compte de {user.username} {status}.', 'success')
     return redirect(url_for('admin.user_detail', id=id))
 
@@ -454,6 +465,9 @@ def reset_password(id):
     user.must_change_password = True
 
     db.session.commit()
+
+    # Logger l'action (CRITICAL - ne pas loguer le nouveau mot de passe)
+    log_audit('reset_password', 'User', entity_id=id, reason='Admin password reset')
 
     # Envoyer l'email avec le nouveau mot de passe
     if send_password_reset_email(user, temp_password):
@@ -479,6 +493,9 @@ def delete_user(id):
     username = user.username
     db.session.delete(user)
     db.session.commit()
+
+    # Logger l'action
+    log_audit('delete', 'User', entity_id=id, new_value=f'deleted_username={username}')
 
     flash(f'Utilisateur "{username}" supprimé.', 'info')
     return redirect(url_for('admin.list_users'))

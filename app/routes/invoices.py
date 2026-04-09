@@ -8,6 +8,7 @@ from app import db
 from app.models import Invoice, InvoiceItem, Client, Product
 from app.exports.pdf_generator import PDFGenerator
 from app.exports.excel_generator import ExcelGenerator
+from app.utils import log_audit
 
 bp = Blueprint('invoices', __name__, url_prefix='/invoices')
 
@@ -107,7 +108,10 @@ def create():
         db.session.flush()
         invoice.calculate_total()
         db.session.commit()
-        
+
+        # Logger l'action
+        log_audit('create', 'Invoice', entity_id=invoice.id, new_value=f'numero={invoice.numero}, client={client_name}, total={invoice.total}')
+
         current_app.logger.info(f'Facture créée: {invoice.numero} par {current_user.username}')
         flash(f'Facture {invoice.numero} créée avec succès!', 'success')
         return redirect(url_for('invoices.detail', id=invoice.id))
@@ -183,7 +187,10 @@ def edit(id):
         db.session.flush()
         invoice.calculate_total()
         db.session.commit()
-        
+
+        # Logger l'action
+        log_audit('update', 'Invoice', entity_id=invoice.id, new_value=f'numero={invoice.numero}, client={client_name}, total={invoice.total}')
+
         current_app.logger.info(f'Facture modifiée: {invoice.numero} par {current_user.username}')
         flash('Facture mise à jour!', 'success')
         return redirect(url_for('invoices.detail', id=invoice.id))
@@ -204,7 +211,10 @@ def delete(id):
     numero = invoice.numero
     db.session.delete(invoice)
     db.session.commit()
-    
+
+    # Logger l'action
+    log_audit('delete', 'Invoice', entity_id=id, new_value=f'deleted_invoice_numero={numero}')
+
     current_app.logger.info(f'Facture supprimée: {numero} par {current_user.username}')
     flash(f'Facture {numero} supprimée.', 'success')
     return redirect(url_for('invoices.index'))
@@ -218,7 +228,10 @@ def mark_paid(id):
     
     invoice.mark_as_paid()
     db.session.commit()
-    
+
+    # Logger l'action
+    log_audit('update', 'Invoice', entity_id=invoice.id, new_value=f'status_changed_to=payée, numero={invoice.numero}')
+
     current_app.logger.info(f'Facture payée: {invoice.numero} par {current_user.username}')
     flash(f'Facture {invoice.numero} marquée comme payée!', 'success')
     return redirect(url_for('invoices.detail', id=id))
@@ -233,6 +246,10 @@ def send_invoice(id):
     if invoice.status == 'brouillon':
         invoice.status = 'envoyée'
         db.session.commit()
+
+        # Logger l'action
+        log_audit('update', 'Invoice', entity_id=invoice.id, new_value=f'status_changed_to=envoyée, numero={invoice.numero}')
+
         flash(f'Facture {invoice.numero} marquée comme envoyée!', 'success')
     
     return redirect(url_for('invoices.detail', id=id))
