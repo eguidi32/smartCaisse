@@ -148,7 +148,7 @@ class Transaction(db.Model):
     amount = db.Column(db.Float, nullable=False)  # Montant en devise locale
     description = db.Column(db.String(200), nullable=False)
     category = db.Column(db.String(50), default='Autre')
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Clé étrangère vers User
@@ -285,7 +285,7 @@ class Dette(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     montant_dette = db.Column(db.Float, nullable=False)
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Clé étrangère vers Client
@@ -335,7 +335,7 @@ class Paiement(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     montant = db.Column(db.Float, nullable=False)
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Clé étrangère vers Dette
@@ -444,7 +444,7 @@ class StockMovement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(10), nullable=False)  # 'entrée' ou 'sortie'
     quantity = db.Column(db.Integer, nullable=False)
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
     notes = db.Column(db.String(300), default='')
     reason = db.Column(db.String(300), default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -565,7 +565,7 @@ class Invoice(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     numero = db.Column(db.String(20), nullable=False)
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=True)
     client_name = db.Column(db.String(100), nullable=False)
     total = db.Column(db.Float, nullable=False, default=0.0)

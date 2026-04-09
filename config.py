@@ -93,3 +93,12 @@ class Config:
     
     # Durée session (30 jours)
     PERMANENT_SESSION_LIFETIME = 2592000
+
+    # ============================================
+    # APPLICATION URLs
+    # ============================================
+
+    # Base URL pour les liens dans les emails et pages
+    # En développement: http://localhost:5000
+    # En production: https://eguidi.pythonanywhere.com
+    BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
