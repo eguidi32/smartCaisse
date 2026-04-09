@@ -191,21 +191,20 @@ class PDFGenerator:
 
         for move in all_movements:
             type_label = "Entrée" if move['type'] == 'entrée' else "Sortie"
-            type_colored = f"<font color='green'><b>{type_label}</b></font>" if move['type'] == 'entrée' else f"<font color='red'><b>{type_label}</b></font>"
             valeur = move['quantity'] * move['price']
 
             data.append([
                 move['date'].strftime("%d/%m/%Y"),
                 move['product_name'],
                 move['sku'],
-                type_colored,
+                type_label,
                 str(move['quantity']),
                 f"{move['price']:.0f}",
                 f"{valeur:.0f}",
                 move['notes'][:30] if len(move['notes']) > 30 else move['notes']
             ])
 
-        table = self._create_table(data, col_widths=[1.8*cm, 3*cm, 1.8*cm, 1.8*cm, 1.8*cm, 1.8*cm, 1.8*cm, 2.4*cm])
+        table = self._create_movements_table(data)
         elements.append(table)
 
         # Footer
@@ -219,22 +218,46 @@ class PDFGenerator:
         buffer.seek(0)
         return buffer
 
-    def _create_summary_table_2cols(self, data):
-        """Crée une table de résumé en 2 colonnes"""
-        table = Table(data, colWidths=[6*cm, 2*cm])
-        table.setStyle(TableStyle([
-            # En-tête style
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
+    def _create_movements_table(self, data):
+        """Crée le tableau des mouvements avec coloration"""
+        table = Table(data, colWidths=[1.8*cm, 2.8*cm, 1.6*cm, 1.6*cm, 1.6*cm, 1.6*cm, 1.6*cm, 2.2*cm])
+
+        # Créer le style du tableau
+        style_list = [
+            # En-tête
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            # Corps
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('ALIGN', (3, 1), (3, -1), 'CENTER'),  # Type centré
+            ('ALIGN', (4, 1), (6, -1), 'RIGHT'),   # Chiffres à droite
             # Grille
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#95a5a6')),
-        ]))
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+            # Alternance couleurs
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+        ]
+
+        # Colorer les lignes selon le type de mouvement
+        for i in range(1, len(data)):
+            if data[i][3] == 'Entrée':  # Type colonne 3
+                style_list.append(('BACKGROUND', (3, i), (3, i), colors.HexColor('#d5f4e6')))
+                style_list.append(('TEXTCOLOR', (3, i), (3, i), colors.HexColor('#27ae60')))
+                style_list.append(('FONTNAME', (3, i), (3, i), 'Helvetica-Bold'))
+            else:  # Sortie
+                style_list.append(('BACKGROUND', (3, i), (3, i), colors.HexColor('#fadbd8')))
+                style_list.append(('TEXTCOLOR', (3, i), (3, i), colors.HexColor('#c0392b')))
+                style_list.append(('FONTNAME', (3, i), (3, i), 'Helvetica-Bold'))
+
+        table.setStyle(TableStyle(style_list))
         return table
     
     def generate_debts_pdf(self, clients, user_name=""):
