@@ -13,10 +13,17 @@ if project_dir not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(os.path.join(project_dir, '.env'))
 
+# Définir l'environnement pour production
+os.environ.setdefault('FLASK_ENV', 'production')
+
 # Créer l'application
 from app import create_app
 
 app = create_app()
 
+# IMPORTANT: PythonAnywhere requires 'application' variable (not 'app')
+application = app
+
 if __name__ == '__main__':
     app.run()
+
