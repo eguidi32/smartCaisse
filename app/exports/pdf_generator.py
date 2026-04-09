@@ -135,86 +135,78 @@ class PDFGenerator:
         return buffer
 
     def generate_movements_pdf(self, products, user_name=""):
-        """Génère un PDF des mouvements de stock avec une mise en page professionnelle"""
+        """Génère un PDF avec liste complète des mouvements de stock"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
-                               rightMargin=2*cm, leftMargin=2*cm,
+                               rightMargin=1.5*cm, leftMargin=1.5*cm,
                                topMargin=2*cm, bottomMargin=2.5*cm)
         elements = []
 
         # En-tête
         self._create_header(elements, f"Mouvements de Stock - {user_name}" if user_name else "Mouvements de Stock")
 
-        # Vérifier s'il y a des mouvements
-        has_movements = any(product.movements.count() > 0 for product in products)
+        # Collecter tous les mouvements
+        all_movements = []
+        for product in products:
+            movements = product.movements.all()
+            for move in movements:
+                all_movements.append({
+                    'product_name': product.name,
+                    'sku': product.sku or '-',
+                    'price': product.price,
+                    'date': move.date,
+                    'type': move.type,
+                    'quantity': move.quantity,
+                    'notes': move.notes or '-'
+                })
 
-        if not has_movements:
+        # Vérifier s'il y a des mouvements
+        if not all_movements:
             elements.append(Paragraph("Aucun mouvement de stock enregistré.", self.styles['Normal']))
             doc.build(elements)
             buffer.seek(0)
             return buffer
 
-        # Calculer les statistiques
-        total_entrees = 0
-        total_sorties = 0
-        total_mouvements = 0
+        # Trier par date décroissante
+        all_movements.sort(key=lambda x: x['date'], reverse=True)
 
-        for product in products:
-            movements = product.movements.all()
-            for move in movements:
-                total_mouvements += 1
-                if move.type == 'entrée':
-                    total_entrees += move.quantity
-                else:
-                    total_sorties += move.quantity
+        # Calculer les statistiques
+        total_entrees = sum(m['quantity'] for m in all_movements if m['type'] == 'entrée')
+        total_sorties = sum(m['quantity'] for m in all_movements if m['type'] == 'sortie')
 
         # Bloc de statistiques
         elements.append(Spacer(1, 10))
         summary_data = [
-            ['Mouvement', 'Quantité'],
             ['Total Entrées', f'{total_entrees}'],
             ['Total Sorties', f'{total_sorties}'],
-            ['Solde Net', f'{total_entrees - total_sorties}']
+            ['Solde Net', f'{total_entrees - total_sorties}'],
+            ['Nombre de mouvements', f'{len(all_movements)}']
         ]
-        summary_table = self._create_summary_table(summary_data)
+        summary_table = self._create_summary_table_2cols(summary_data)
         elements.append(summary_table)
         elements.append(Spacer(1, 20))
 
-        # Pour chaque produit avec mouvements
-        for product in products:
-            movements = product.movements.all()
+        # Tableau complet des mouvements
+        data = [['Date', 'Produit', 'Code', 'Type', 'Quantité', 'Prix Unit.', 'Valeur', 'Notes']]
 
-            if movements:
-                # Titre du produit avec infos
-                elements.append(Paragraph(
-                    f"<b>{product.name}</b>",
-                    self.styles['Normal']
-                ))
-                elements.append(Paragraph(
-                    f"SKU: {product.sku or '-'} | Stock actuel: {product.current_stock} unités | Prix: {product.price:.0f} FCFA",
-                    self.styles['RightAligned']
-                ))
+        for move in all_movements:
+            type_label = "Entrée" if move['type'] == 'entrée' else "Sortie"
+            type_colored = f"<font color='green'><b>{type_label}</b></font>" if move['type'] == 'entrée' else f"<font color='red'><b>{type_label}</b></font>"
+            valeur = move['quantity'] * move['price']
 
-                # Tableau des mouvements
-                data = [['Date', 'Type', 'Quantité', 'Notes']]
+            data.append([
+                move['date'].strftime("%d/%m/%Y"),
+                move['product_name'],
+                move['sku'],
+                type_colored,
+                str(move['quantity']),
+                f"{move['price']:.0f}",
+                f"{valeur:.0f}",
+                move['notes'][:30] if len(move['notes']) > 30 else move['notes']
+            ])
 
-                # Trier par date décroissante
-                movements_sorted = sorted(movements, key=lambda x: x.date, reverse=True)
-
-                for move in movements_sorted:
-                    type_label = "Entrée" if move.type == 'entrée' else "Sortie"
-                    # Colorer selon le type
-                    type_colored = f"<font color='green'><b>{type_label}</b></font>" if move.type == 'entrée' else f"<font color='red'><b>{type_label}</b></font>"
-                    data.append([
-                        move.date.strftime("%d/%m/%Y"),
-                        type_colored,
-                        str(move.quantity),
-                        move.notes or '-'
-                    ])
-
-                table = self._create_table(data, col_widths=[2.8*cm, 2.5*cm, 2*cm, 5*cm])
-                elements.append(table)
-                elements.append(Spacer(1, 15))
+        table = self._create_table(data, col_widths=[1.8*cm, 3*cm, 1.8*cm, 1.8*cm, 1.8*cm, 1.8*cm, 1.8*cm, 2.4*cm])
+        elements.append(table)
 
         # Footer
         elements.append(Spacer(1, 20))
@@ -227,30 +219,21 @@ class PDFGenerator:
         buffer.seek(0)
         return buffer
 
-    def _create_summary_table(self, data):
-        """Crée une table de résumé stylisée"""
-        table = Table(data, colWidths=[5*cm, 3*cm])
+    def _create_summary_table_2cols(self, data):
+        """Crée une table de résumé en 2 colonnes"""
+        table = Table(data, colWidths=[6*cm, 2*cm])
         table.setStyle(TableStyle([
-            # En-tête
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('TOPPADDING', (0, 0), (-1, 0), 12),
-            # Corps
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
-            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
-            ('TOPPADDING', (0, 1), (-1, -1), 10),
+            # En-tête style
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
             # Grille
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
-            # Alternance couleurs
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#95a5a6')),
         ]))
         return table
     
