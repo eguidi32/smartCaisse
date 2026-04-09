@@ -135,14 +135,15 @@ class PDFGenerator:
         return buffer
 
     def generate_movements_pdf(self, products, user_name=""):
-        """Génère un PDF des mouvements de stock"""
+        """Génère un PDF des mouvements de stock avec une mise en page professionnelle"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
                                rightMargin=2*cm, leftMargin=2*cm,
-                               topMargin=2*cm, bottomMargin=2*cm)
+                               topMargin=2*cm, bottomMargin=2.5*cm)
         elements = []
 
-        self._create_header(elements, f"Mouvements de Stock de {user_name}" if user_name else "Mouvements de Stock")
+        # En-tête
+        self._create_header(elements, f"Mouvements de Stock - {user_name}" if user_name else "Mouvements de Stock")
 
         # Vérifier s'il y a des mouvements
         has_movements = any(product.movements.count() > 0 for product in products)
@@ -153,14 +154,46 @@ class PDFGenerator:
             buffer.seek(0)
             return buffer
 
+        # Calculer les statistiques
+        total_entrees = 0
+        total_sorties = 0
+        total_mouvements = 0
+
+        for product in products:
+            movements = product.movements.all()
+            for move in movements:
+                total_mouvements += 1
+                if move.type == 'entrée':
+                    total_entrees += move.quantity
+                else:
+                    total_sorties += move.quantity
+
+        # Bloc de statistiques
+        elements.append(Spacer(1, 10))
+        summary_data = [
+            ['Mouvement', 'Quantité'],
+            ['Total Entrées', f'{total_entrees}'],
+            ['Total Sorties', f'{total_sorties}'],
+            ['Solde Net', f'{total_entrees - total_sorties}']
+        ]
+        summary_table = self._create_summary_table(summary_data)
+        elements.append(summary_table)
+        elements.append(Spacer(1, 20))
+
         # Pour chaque produit avec mouvements
         for product in products:
             movements = product.movements.all()
 
             if movements:
-                # Titre du produit
-                elements.append(Paragraph(f"<b>{product.name}</b> (SKU: {product.sku or '-'}, Stock: {product.current_stock})",
-                                        self.styles['Normal']))
+                # Titre du produit avec infos
+                elements.append(Paragraph(
+                    f"<b>{product.name}</b>",
+                    self.styles['Normal']
+                ))
+                elements.append(Paragraph(
+                    f"SKU: {product.sku or '-'} | Stock actuel: {product.current_stock} unités | Prix: {product.price:.0f} FCFA",
+                    self.styles['RightAligned']
+                ))
 
                 # Tableau des mouvements
                 data = [['Date', 'Type', 'Quantité', 'Notes']]
@@ -170,9 +203,11 @@ class PDFGenerator:
 
                 for move in movements_sorted:
                     type_label = "Entrée" if move.type == 'entrée' else "Sortie"
+                    # Colorer selon le type
+                    type_colored = f"<font color='green'><b>{type_label}</b></font>" if move.type == 'entrée' else f"<font color='red'><b>{type_label}</b></font>"
                     data.append([
                         move.date.strftime("%d/%m/%Y"),
-                        type_label,
+                        type_colored,
                         str(move.quantity),
                         move.notes or '-'
                     ])
@@ -181,9 +216,43 @@ class PDFGenerator:
                 elements.append(table)
                 elements.append(Spacer(1, 15))
 
+        # Footer
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph(
+            f"<hr/><i>Document généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')} par SmartCaisse</i>",
+            self.styles['RightAligned']
+        ))
+
         doc.build(elements)
         buffer.seek(0)
         return buffer
+
+    def _create_summary_table(self, data):
+        """Crée une table de résumé stylisée"""
+        table = Table(data, colWidths=[5*cm, 3*cm])
+        table.setStyle(TableStyle([
+            # En-tête
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            # Corps
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
+            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+            ('TOPPADDING', (0, 1), (-1, -1), 10),
+            # Grille
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+            # Alternance couleurs
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+        ]))
+        return table
     
     def generate_debts_pdf(self, clients, user_name=""):
         """Génère un PDF des dettes clients"""
