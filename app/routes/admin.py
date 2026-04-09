@@ -7,10 +7,10 @@ Routes pour l'administration
 from functools import wraps
 import secrets
 import string
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app, jsonify, send_file
 from flask_login import login_required, current_user
 from flask_mail import Message
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import func
 from app import db, mail
 from app.models import User, Transaction, Client, Dette, Paiement, AuditLog
@@ -299,6 +299,211 @@ def audit_logs():
                            all_actions=all_actions,
                            all_entities=all_entities,
                            all_users=all_users)
+
+
+# ============================================
+# ANALYTICS & REPORTING
+# ============================================
+
+@admin_bp.route('/analytics')
+@admin_required
+def analytics():
+    """Dashboard avec analytics et charts"""
+    # Récupérer les données pour les 30 derniers jours
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+
+    # Stats générales
+    total_users = User.query.count()
+    recent_users = User.query.filter(User.created_at >= thirty_days_ago).count()
+
+    # Stats transactions
+    total_transactions = Transaction.query.count()
+    total_recettes = db.session.query(func.sum(Transaction.amount)).filter(
+        Transaction.type == 'recette'
+    ).scalar() or 0
+    total_depenses = db.session.query(func.sum(Transaction.amount)).filter(
+        Transaction.type == 'depense'
+    ).scalar() or 0
+
+    # Stats audit
+    total_audit_logs = AuditLog.query.count()
+    recent_audit_logs = AuditLog.query.filter(AuditLog.timestamp >= thirty_days_ago).count()
+
+    return render_template('admin/analytics.html',
+                           total_users=total_users,
+                           recent_users=recent_users,
+                           total_transactions=total_transactions,
+                           total_recettes=total_recettes,
+                           total_depenses=total_depenses,
+                           total_audit_logs=total_audit_logs,
+                           recent_audit_logs=recent_audit_logs)
+
+
+@admin_bp.route('/analytics/api/transactions')
+@admin_required
+def analytics_transactions():
+    """API pour données des charts de transactions"""
+    days = request.args.get('days', 30, type=int)
+    start_date = datetime.utcnow() - timedelta(days=days)
+
+    # Grouper par jour
+    transactions = db.session.query(
+        func.date(Transaction.date).label('date'),
+        Transaction.type,
+        func.sum(Transaction.amount).label('total'),
+        func.count(Transaction.id).label('count')
+    ).filter(Transaction.date >= start_date).group_by(
+        func.date(Transaction.date),
+        Transaction.type
+    ).order_by(func.date(Transaction.date)).all()
+
+    # Formater les données
+    dates = {}
+    for transaction in transactions:
+        date_str = transaction.date.strftime('%Y-%m-%d')
+        if date_str not in dates:
+            dates[date_str] = {'recette': 0, 'depense': 0, 'count_recette': 0, 'count_depense': 0}
+
+        if transaction.type == 'recette':
+            dates[date_str]['recette'] = float(transaction.total or 0)
+            dates[date_str]['count_recette'] = transaction.count
+        else:
+            dates[date_str]['depense'] = float(transaction.total or 0)
+            dates[date_str]['count_depense'] = transaction.count
+
+    return jsonify({
+        'dates': sorted(dates.keys()),
+        'recettes': [dates[d]['recette'] for d in sorted(dates.keys())],
+        'depenses': [dates[d]['depense'] for d in sorted(dates.keys())],
+        'count_recettes': [dates[d]['count_recette'] for d in sorted(dates.keys())],
+        'count_depenses': [dates[d]['count_depense'] for d in sorted(dates.keys())]
+    })
+
+
+@admin_bp.route('/analytics/api/users')
+@admin_required
+def analytics_users():
+    """API pour données des charts d'utilisateurs"""
+    days = request.args.get('days', 30, type=int)
+    start_date = datetime.utcnow() - timedelta(days=days)
+
+    # Grouper par jour
+    users = db.session.query(
+        func.date(User.created_at).label('date'),
+        func.count(User.id).label('count')
+    ).filter(User.created_at >= start_date).group_by(
+        func.date(User.created_at)
+    ).order_by(func.date(User.created_at)).all()
+
+    # Formater les données
+    dates = {}
+    cumulative = 0
+    for user in users:
+        date_str = user.date.strftime('%Y-%m-%d')
+        cumulative += user.count
+        dates[date_str] = {'new': user.count, 'total': cumulative}
+
+    return jsonify({
+        'dates': sorted(dates.keys()),
+        'new_users': [dates[d]['new'] for d in sorted(dates.keys())],
+        'total_users': [dates[d]['total'] for d in sorted(dates.keys())]
+    })
+
+
+@admin_bp.route('/analytics/api/audit-actions')
+@admin_required
+def analytics_audit_actions():
+    """API pour distribution des actions d'audit"""
+    action_counts = db.session.query(
+        AuditLog.action,
+        func.count(AuditLog.id).label('count')
+    ).group_by(AuditLog.action).order_by(func.count(AuditLog.id).desc()).all()
+
+    return jsonify({
+        'actions': [a[0] for a in action_counts],
+        'counts': [a[1] for a in action_counts]
+    })
+
+
+@admin_bp.route('/user/<int:id>/activity')
+@admin_required
+def user_activity(id):
+    """Rapport d'activité d'un utilisateur"""
+    user = User.query.get_or_404(id)
+
+    # Récupérer les audit logs de cet utilisateur
+    page = request.args.get('page', 1, type=int)
+    logs = AuditLog.query.filter_by(user_id=id).order_by(
+        AuditLog.timestamp.desc()
+    ).paginate(page=page, per_page=20, error_out=False)
+
+    # Stats d'activité
+    total_actions = AuditLog.query.filter_by(user_id=id).count()
+    recent_actions = AuditLog.query.filter_by(user_id=id).filter(
+        AuditLog.timestamp >= datetime.utcnow() - timedelta(days=7)
+    ).count()
+
+    # Actions par type
+    action_distribution = db.session.query(
+        AuditLog.action,
+        func.count(AuditLog.id).label('count')
+    ).filter_by(user_id=id).group_by(AuditLog.action).order_by(
+        func.count(AuditLog.id).desc()
+    ).all()
+
+    return render_template('admin/user_activity.html',
+                           user=user,
+                           pagination=logs,
+                           logs=logs.items,
+                           total_actions=total_actions,
+                           recent_actions=recent_actions,
+                           action_distribution=action_distribution)
+
+
+@admin_bp.route('/audit-logs/export/csv')
+@admin_required
+def export_audit_logs_csv():
+    """Exporter les audit logs en CSV"""
+    # Récupérer tous les audit logs
+    logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
+
+    csv_content = "Timestamp,Utilisateur,Action,Entité,ID,IP,Méthode,Endpoint,Statut,Raison,Nouvelle Valeur\n"
+    for log in logs:
+        username = log.user.username if log.user else "System"
+        timestamp = log.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        csv_content += f'{timestamp},"{username}","{log.action}","{log.entity_type}",{log.entity_id or ""},'
+        csv_content += f'"{log.ip_address or ""}","{log.method or ""}","{log.endpoint or ""}","{log.status}",'
+        csv_content += f'"{log.reason or ""}","{log.new_value or ""}"\n'
+
+    from flask import Response
+    return Response(
+        csv_content,
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment;filename=audit_logs_{datetime.utcnow().strftime("%Y%m%d")}.csv'}
+    )
+
+
+@admin_bp.route('/audit-logs/export/pdf')
+@admin_required
+def export_audit_logs_pdf():
+    """Exporter les audit logs en PDF"""
+    from app.exports.pdf_generator import PDFGenerator
+
+    # Récupérer les audit logs des 7 derniers jours
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    logs = AuditLog.query.filter(AuditLog.timestamp >= seven_days_ago).order_by(
+        AuditLog.timestamp.desc()
+    ).all()
+
+    generator = PDFGenerator("Rapport Audit Logs")
+    pdf_buffer = generator.generate_audit_logs_pdf(logs, current_app.config)
+
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'audit_logs_{datetime.utcnow().strftime("%Y%m%d")}.pdf'
+    )
 
 
 # ============================================

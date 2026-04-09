@@ -511,7 +511,75 @@ class PDFGenerator:
             f"<b>Nombre de factures:</b> {len(invoices)} | <b>Montant total:</b> {total_montant:.0f} FCFA",
             self.styles['Normal']
         ))
-        
+
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
+
+    def generate_audit_logs_pdf(self, logs, config):
+        """Génère un PDF de rapport d'audit logs"""
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4,
+                               rightMargin=0.8*cm, leftMargin=0.8*cm,
+                               topMargin=1.5*cm, bottomMargin=1.5*cm)
+        elements = []
+
+        self._create_header(elements, "Rapport Audit Logs")
+        elements.append(Paragraph(
+            f"Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}",
+            self.styles['CustomSubtitle']
+        ))
+        elements.append(Spacer(1, 15))
+
+        # Tableau des audit logs
+        data = [['Timestamp', 'Utilisateur', 'Action', 'Entité', 'IP', 'Statut', 'Détails']]
+
+        for log in logs[:100]:  # Limiter à 100 logs par PDF
+            username = log.user.username if log.user else "System"
+            timestamp = log.timestamp.strftime('%d/%m %H:%M')
+            details = ""
+            if log.reason:
+                details = log.reason[:30]
+            elif log.new_value:
+                details = log.new_value[:30]
+
+            status_text = "✓ OK" if log.status == 'success' else "✗ ERR"
+
+            data.append([
+                timestamp,
+                username,
+                log.action,
+                log.entity_type,
+                log.ip_address or '-',
+                status_text,
+                details
+            ])
+
+        table = self._create_table(data, col_widths=[2*cm, 2*cm, 2*cm, 1.8*cm, 1.5*cm, 1.2*cm, 3.5*cm])
+
+        # Appliquer les styles
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495E')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ]))
+
+        elements.append(table)
+
+        # Résumé
+        elements.append(Spacer(1, 15))
+        summary_text = f"<b>Total logs affichés:</b> {min(len(logs), 100)}"
+        if len(logs) > 100:
+            summary_text += f" (sur {len(logs)} au total)"
+        elements.append(Paragraph(summary_text, self.styles['Normal']))
+
         doc.build(elements)
         buffer.seek(0)
         return buffer

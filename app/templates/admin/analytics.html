@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h2 mb-0">
+                <i class="fas fa-chart-bar"></i> Analytics Dashboard
+            </h1>
+            <p class="text-muted">Vue globale des activités et statistiques</p>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fs-3 text-primary mb-2"></i>
+                    <h3 class="mb-1">{{ total_users }}</h3>
+                    <p class="text-muted mb-0">Utilisateurs</p>
+                    <small class="text-success">+{{ recent_users }} (30j)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-exchange-alt fs-3 text-warning mb-2"></i>
+                    <h3 class="mb-1">{{ total_transactions }}</h3>
+                    <p class="text-muted mb-0">Transactions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-arrow-up text-success fs-3 mb-2"></i>
+                    <h3 class="mb-1 text-success">{{ "%.0f"|format(total_recettes) }}</h3>
+                    <p class="text-muted mb-0">Recettes (FCFA)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-arrow-down text-danger fs-3 mb-2"></i>
+                    <h3 class="mb-1 text-danger">{{ "%.0f"|format(total_depenses) }}</h3>
+                    <p class="text-muted mb-0">Dépenses (FCFA)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Transactions (30 derniers jours)</h5>
+                    <select id="transactionDays" class="form-select form-select-sm" style="width: 120px;">
+                        <option value="7">7 jours</option>
+                        <option value="30" selected>30 jours</option>
+                        <option value="90">90 jours</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <canvas id="transactionChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Nouveaux Utilisateurs (30 jours)</h5>
+                    <select id="userDays" class="form-select form-select-sm" style="width: 120px;">
+                        <option value="7">7 jours</option>
+                        <option value="30" selected>30 jours</option>
+                        <option value="90">90 jours</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <canvas id="userChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Distribution des Actions d'Audit</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="auditChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="mb-0">Statistiques Audit</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 border-end">
+                            <h3 class="text-primary">{{ total_audit_logs }}</h3>
+                            <small class="text-muted">Total Audit Logs</small>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-success">{{ recent_audit_logs }}</h3>
+                            <small class="text-muted">Derniers 30 jours</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="mt-3">
+                        <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fas fa-list"></i> Voir Audit Logs
+                        </a>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{{ url_for('admin.export_audit_logs_csv') }}" class="btn btn-sm btn-outline-success w-100">
+                            <i class="fas fa-download"></i> Exporter CSV
+                        </a>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{{ url_for('admin.export_audit_logs_pdf') }}" class="btn btn-sm btn-outline-danger w-100">
+                            <i class="fas fa-file-pdf"></i> Exporter PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+// Fonction pour charger et afficher le chart des transactions
+async function loadTransactionChart(days = 30) {
+    const response = await fetch(`/admin/analytics/api/transactions?days=${days}`);
+    const data = await response.json();
+
+    const ctx = document.getElementById('transactionChart').getContext('2d');
+
+    if (window.transactionChart) {
+        window.transactionChart.destroy();
+    }
+
+    window.transactionChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates,
+            datasets: [
+                {
+                    label: 'Recettes',
+                    data: data.recettes,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#28a745'
+                },
+                {
+                    label: 'Dépenses',
+                    data: data.depenses,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#dc3545'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Montant (FCFA)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Fonction pour charger et afficher le chart des utilisateurs
+async function loadUserChart(days = 30) {
+    const response = await fetch(`/admin/analytics/api/users?days=${days}`);
+    const data = await response.json();
+
+    const ctx = document.getElementById('userChart').getContext('2d');
+
+    if (window.userChart) {
+        window.userChart.destroy();
+    }
+
+    window.userChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates,
+            datasets: [
+                {
+                    label: 'Nouveaux Utilisateurs',
+                    data: data.new_users,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#0d6efd'
+                },
+                {
+                    label: 'Total Cumulatif',
+                    data: data.total_users,
+                    borderColor: '#6f42c1',
+                    backgroundColor: 'rgba(111, 66, 193, 0.05)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#6f42c1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Fonction pour charger et afficher le chart des actions
+async function loadAuditChart() {
+    const response = await fetch('/admin/analytics/api/audit-actions');
+    const data = await response.json();
+
+    const ctx = document.getElementById('auditChart').getContext('2d');
+
+    if (window.auditChart) {
+        window.auditChart.destroy();
+    }
+
+    window.auditChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.actions,
+            datasets: [{
+                data: data.counts,
+                backgroundColor: [
+                    '#0d6efd',
+                    '#6f42c1',
+                    '#20c997',
+                    '#fd7e14',
+                    '#dc3545',
+                    '#198754',
+                    '#0dcaf0'
+                ],
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+}
+
+// Event listeners pour les dropdowns
+document.getElementById('transactionDays').addEventListener('change', (e) => {
+    loadTransactionChart(e.target.value);
+});
+
+document.getElementById('userDays').addEventListener('change', (e) => {
+    loadUserChart(e.target.value);
+});
+
+// Charger les charts au chargement de la page
+document.addEventListener('DOMContentLoaded', () => {
+    loadTransactionChart(30);
+    loadUserChart(30);
+    loadAuditChart();
+});
+</script>
+
+{% endblock %}

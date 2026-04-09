@@ -16,6 +16,9 @@
         </h1>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.user_activity', id=user.id) }}" class="btn btn-outline-info">
+            <i class="bi bi-graph-up me-2"></i>Activité
+        </a>
         <a href="{{ url_for('admin.edit_user', id=user.id) }}" class="btn btn-outline-primary">
             <i class="bi bi-pencil me-2"></i>Modifier
         </a>
