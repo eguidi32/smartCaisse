@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import func
 from app import db
 from app.models import Transaction
+from app.utils import log_audit
 
 # Création du Blueprint
 transactions_bp = Blueprint('transactions', __name__, url_prefix='/transactions')
@@ -176,6 +177,9 @@ def add_transaction():
         db.session.add(transaction)
         db.session.commit()
 
+        # Logger l'action
+        log_audit('create', 'Transaction', entity_id=transaction.id, new_value=f'type={type_transaction}, amount={amount}, category={category}')
+
         flash('Transaction ajoutée avec succès !', 'success')
         return redirect(url_for('transactions.list_transactions'))
 
@@ -245,6 +249,9 @@ def edit_transaction(id):
 
         db.session.commit()
 
+        # Logger l'action
+        log_audit('update', 'Transaction', entity_id=transaction.id, new_value=f'type={type_transaction}, amount={amount}, category={category}')
+
         flash('Transaction modifiée avec succès !', 'success')
         return redirect(url_for('transactions.list_transactions'))
 
@@ -261,6 +268,9 @@ def delete_transaction(id):
 
     db.session.delete(transaction)
     db.session.commit()
+
+    # Logger l'action
+    log_audit('delete', 'Transaction', entity_id=id, new_value=f'deleted_transaction_type={transaction.type}, amount={transaction.amount}')
 
     flash('Transaction supprimée.', 'info')
     return redirect(url_for('transactions.list_transactions'))

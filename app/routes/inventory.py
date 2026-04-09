@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import or_, and_, func
 from app import db
 from app.models import Product, StockMovement, ProductCategory, ProductHistory
+from app.utils import log_audit
 
 # Constante pagination (cohérent avec PER_PAGE du projet)
 PER_PAGE = 10
@@ -324,6 +325,9 @@ def add_product():
             db.session.add(history)
             db.session.commit()
 
+            # Logger l'action
+            log_audit('create', 'Product', entity_id=product.id, new_value=f'name={name}, sku={sku}, price={product.price}')
+
             flash(f'Produit "{name}" créé avec succès', 'success')
             return redirect(url_for('inventory.list_products'))
         except Exception as e:
@@ -385,6 +389,9 @@ def edit_product(id):
             product.category_id = category_id if category_id else None
             db.session.commit()
 
+            # Logger l'action
+            log_audit('update', 'Product', entity_id=product.id, new_value=f'name={name}, sku={sku}, price={product.price}')
+
             flash(f'Produit "{name}" mis à jour', 'success')
             return redirect(url_for('inventory.product_detail', id=product.id))
         except Exception as e:
@@ -435,6 +442,10 @@ def delete_product(id):
         name = product.name
         db.session.delete(product)
         db.session.commit()
+
+        # Logger l'action
+        log_audit('delete', 'Product', entity_id=id, new_value=f'deleted_product_name={name}')
+
         flash(f'Produit "{name}" supprimé', 'success')
     except Exception as e:
         db.session.rollback()
@@ -512,6 +523,9 @@ def add_stock_movement():
             )
             db.session.add(movement)
             db.session.commit()
+
+            # Logger l'action
+            log_audit('create', 'StockMovement', entity_id=movement.id, new_value=f'type={movement_type}, quantity={quantity}, product_id={product_id}')
 
             # Mettre à jour cache
             update_product_stock_cache(product_id)
