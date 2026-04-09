@@ -138,7 +138,7 @@ class PDFGenerator:
         """Génère un PDF avec liste complète des mouvements de stock"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
-                               rightMargin=1.5*cm, leftMargin=1.5*cm,
+                               rightMargin=1*cm, leftMargin=1*cm,
                                topMargin=2*cm, bottomMargin=2.5*cm)
         elements = []
 
@@ -170,22 +170,6 @@ class PDFGenerator:
         # Trier par date décroissante
         all_movements.sort(key=lambda x: x['date'], reverse=True)
 
-        # Calculer les statistiques
-        total_entrees = sum(m['quantity'] for m in all_movements if m['type'] == 'entrée')
-        total_sorties = sum(m['quantity'] for m in all_movements if m['type'] == 'sortie')
-
-        # Bloc de statistiques
-        elements.append(Spacer(1, 10))
-        summary_data = [
-            ['Total Entrées', f'{total_entrees}'],
-            ['Total Sorties', f'{total_sorties}'],
-            ['Solde Net', f'{total_entrees - total_sorties}'],
-            ['Nombre de mouvements', f'{len(all_movements)}']
-        ]
-        summary_table = self._create_summary_table_2cols(summary_data)
-        elements.append(summary_table)
-        elements.append(Spacer(1, 20))
-
         # Tableau complet des mouvements
         data = [['Date', 'Produit', 'Code', 'Type', 'Quantité', 'Prix Unit.', 'Valeur', 'Notes']]
 
@@ -201,16 +185,16 @@ class PDFGenerator:
                 str(move['quantity']),
                 f"{move['price']:.0f}",
                 f"{valeur:.0f}",
-                move['notes'][:30] if len(move['notes']) > 30 else move['notes']
+                move['notes'][:25] if len(move['notes']) > 25 else move['notes']
             ])
 
         table = self._create_movements_table(data)
         elements.append(table)
 
         # Footer
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 15))
         elements.append(Paragraph(
-            f"<hr/><i>Document généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')} par SmartCaisse</i>",
+            f"<i>Document généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')} par SmartCaisse</i>",
             self.styles['RightAligned']
         ))
 
@@ -219,8 +203,8 @@ class PDFGenerator:
         return buffer
 
     def _create_movements_table(self, data):
-        """Crée le tableau des mouvements avec coloration"""
-        table = Table(data, colWidths=[1.8*cm, 2.8*cm, 1.6*cm, 1.6*cm, 1.6*cm, 1.6*cm, 1.6*cm, 2.2*cm])
+        """Crée le tableau des mouvements avec coloration - optimisé pour lisibilité"""
+        table = Table(data, colWidths=[1.7*cm, 3.2*cm, 1.7*cm, 1.7*cm, 1.6*cm, 1.7*cm, 1.8*cm, 1.8*cm])
 
         # Créer le style du tableau
         style_list = [
@@ -229,15 +213,15 @@ class PDFGenerator:
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
             # Corps
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+            ('TOPPADDING', (0, 1), (-1, -1), 10),
             ('ALIGN', (3, 1), (3, -1), 'CENTER'),  # Type centré
             ('ALIGN', (4, 1), (6, -1), 'RIGHT'),   # Chiffres à droite
             # Grille
