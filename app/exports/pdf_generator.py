@@ -259,7 +259,25 @@ class PDFGenerator:
 
         table.setStyle(TableStyle(style_list))
         return table
-    
+
+    def _create_summary_table_2cols(self, data):
+        """Crée une table de résumé en 2 colonnes"""
+        table = Table(data, colWidths=[6*cm, 2*cm])
+        table.setStyle(TableStyle([
+            # En-tête style
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            # Grille
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#95a5a6')),
+        ]))
+        return table
+
     def generate_debts_pdf(self, clients, user_name=""):
         """Génère un PDF des dettes clients"""
         buffer = BytesIO()
