@@ -138,7 +138,7 @@ class PDFGenerator:
         """Génère un PDF avec liste complète des mouvements de stock"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
-                               rightMargin=1*cm, leftMargin=1*cm,
+                               rightMargin=0.8*cm, leftMargin=0.8*cm,
                                topMargin=2*cm, bottomMargin=2.5*cm)
         elements = []
 
@@ -215,7 +215,8 @@ class PDFGenerator:
 
     def _create_movements_table(self, data):
         """Crée le tableau des mouvements avec coloration - optimisé pour lisibilité"""
-        table = Table(data, colWidths=[1.8*cm, 3.5*cm, 1.8*cm, 1.8*cm, 1.8*cm, 1.9*cm, 1.9*cm])
+        # Colonnes élargies pour utiliser toute la largeur disponible
+        table = Table(data, colWidths=[2*cm, 4*cm, 2*cm, 2*cm, 2*cm, 2.2*cm, 2.2*cm])
 
         # Créer le style du tableau
         style_list = [
