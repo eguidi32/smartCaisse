@@ -267,6 +267,25 @@ def send_invoice(id):
     invoice = Invoice.query.filter_by(id=id, user_id=current_user.id).first_or_404()
 
     if invoice.status == 'brouillon':
+        # Vérifier que le stock est suffisant pour tous les articles
+        stock_errors = []
+        for item in invoice.items:
+            product = Product.query.get(item.product_id)
+            if not product:
+                stock_errors.append(f'Produit {item.product_name} non trouvé')
+                continue
+
+            if product.stock_cache <= 0:
+                stock_errors.append(f'{product.name}: stock vide (0 unitéS)')
+            elif product.stock_cache < item.quantity:
+                stock_errors.append(f'{product.name}: stock insuffisant ({product.stock_cache} disponibles, {item.quantity} demandées)')
+
+        if stock_errors:
+            flash('Impossible d\'envoyer la facture - Stock insuffisant:', 'danger')
+            for error in stock_errors:
+                flash(error, 'danger')
+            return redirect(url_for('invoices.detail', id=id))
+
         invoice.status = 'envoyée'
 
         # Créer les mouvements de stock (sortie) pour chaque article
