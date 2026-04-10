@@ -16,7 +16,10 @@ def send_client_registration_email(client):
     """
     # Récupérer le token déjà sauvegardé en BDD
     token = client.email_confirmation_token
-    confirmation_url = url_for('debts.confirm_email', token=token, _external=True)
+
+    # Build confirmation URL using BASE_URL for production compatibility
+    base_url = current_app.config.get('BASE_URL', 'http://localhost:5000')
+    confirmation_url = f"{base_url}/debts/confirm-email/{token}"
 
     # Mode développement: affichage console
     if not current_app.config.get('MAIL_USERNAME'):
