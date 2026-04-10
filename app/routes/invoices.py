@@ -113,22 +113,7 @@ def create():
         log_audit('create', 'Invoice', entity_id=invoice.id, new_value=f'numero={invoice.numero}, client={client_name}, total={invoice.total}')
 
         current_app.logger.info(f'Facture créée: {invoice.numero} par {current_user.username}')
-
-        # Envoyer l'email au client si disponible
-        if client_id:
-            client = Client.query.filter_by(id=client_id, user_id=current_user.id).first()
-            if client and client.email:
-                from app.email_service import send_invoice_email
-                email_result = send_invoice_email(invoice, client)
-                if email_result:
-                    flash(f'Facture {invoice.numero} créée et envoyée par email à {client.email}!', 'success')
-                else:
-                    flash(f'Facture {invoice.numero} créée mais erreur lors de l\'envoi par email.', 'warning')
-            else:
-                flash(f'Facture {invoice.numero} créée avec succès!', 'success')
-        else:
-            flash(f'Facture {invoice.numero} créée avec succès!', 'success')
-
+        flash(f'Facture {invoice.numero} créée avec succès!', 'success')
         return redirect(url_for('invoices.detail', id=invoice.id))
     
     # GET: Afficher le formulaire
@@ -270,7 +255,7 @@ def mark_paid(id):
 @bp.route('/<int:id>/send', methods=['POST'])
 @login_required
 def send_invoice(id):
-    """Marquer une facture comme envoyée et créer les mouvements de stock"""
+    """Marquer une facture comme envoyée, créer les mouvements de stock, et envoyer email"""
     invoice = Invoice.query.filter_by(id=id, user_id=current_user.id).first_or_404()
 
     if invoice.status == 'brouillon':
@@ -289,6 +274,15 @@ def send_invoice(id):
             db.session.add(stock_movement)
 
         db.session.commit()
+
+        # Envoyer l'email avec PDF
+        from app.email_service import send_invoice_email
+        client = None
+        if invoice.client_id:
+            client = Client.query.filter_by(id=invoice.client_id, user_id=current_user.id).first()
+
+        if client and client.email:
+            send_invoice_email(invoice, client, current_user)
 
         # Logger l'action
         log_audit('update', 'Invoice', entity_id=invoice.id, new_value=f'status_changed_to=envoyée, numero={invoice.numero}')

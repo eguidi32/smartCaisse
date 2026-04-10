@@ -82,9 +82,13 @@ class Config:
     # ============================================
     # SÉCURITÉ PRODUCTION
     # ============================================
-    
+
     # HTTPS enforcement (seulement en production)
     FORCE_HTTPS = os.environ.get('FLASK_ENV') == 'production'
+
+    # CSRF Protection
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_CHECK_DEFAULT = True
     
     # Session sécurisée
     SESSION_COOKIE_SECURE = FORCE_HTTPS  # HTTPS only

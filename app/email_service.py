@@ -307,13 +307,14 @@ L'équipe SmartCaisse
     return _send_email_production(msg)
 
 
-def send_invoice_email(invoice, client):
+def send_invoice_email(invoice, client, user=None):
     """
-    Envoie une facture au client par email
+    Envoie une facture au client par email avec PDF en pièce jointe
 
     Args:
         invoice: Objet Invoice
-        client: Objet Client (optionnel, si None utilise invoice.client_name)
+        client: Objet Client
+        user: Objet User (pour générer le PDF avec infos entreprise)
     """
     # Si pas de client avec email, pas d'envoi
     if not client or not client.email:
@@ -322,13 +323,19 @@ def send_invoice_email(invoice, client):
     # Mode développement
     if not current_app.config.get('MAIL_USERNAME'):
         print('\n' + '=' * 70)
-        print('MODE DEVELOPPEMENT - Envoi facture:')
+        print('MODE DEVELOPPEMENT - Envoi facture avec PDF:')
         print(f'Destinataire: {client.email}')
         print(f'Client: {client.nom}')
         print(f'Facture: {invoice.numero}')
         print(f'Total: {invoice.total:.2f} FCFA')
+        print(f'PDF attaché: facture_{invoice.numero}.pdf')
         print('=' * 70 + '\n')
         return True
+
+    # Générer le PDF de la facture
+    from app.exports.pdf_generator import PDFGenerator
+    generator = PDFGenerator(f"Facture {invoice.numero}")
+    pdf_buffer = generator.generate_invoice_pdf(invoice, user)
 
     # Construire le message
     msg = Message(
@@ -357,7 +364,7 @@ def send_invoice_email(invoice, client):
                 </div>
                 <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 5px 5px; border: 1px solid #dee2e6; border-top: none;">
                     <p>Bonjour <strong>{client.nom}</strong>,</p>
-                    <p>Veuillez trouver ci-dessous votre facture:</p>
+                    <p>Veuillez trouver ci-jointe votre facture en PDF. Vous pouvez également consulter les détails ci-dessous:</p>
 
                     <div style="margin-top: 20px; background-color: #fff; padding: 15px; border-radius: 5px; border: 1px solid #dee2e6;">
                         <h3 style="color: #0d6efd; margin-top: 0;">Facture #{invoice.numero}</h3>
@@ -395,7 +402,7 @@ def send_invoice_email(invoice, client):
 
     msg.body = f'''Bonjour {client.nom},
 
-Veuillez trouver ci-dessous votre facture:
+Veuillez trouver ci-jointe votre facture en PDF.
 
 ===============================
 FACTURE #{invoice.numero}
@@ -421,6 +428,13 @@ Modalités de paiement:
 Merci de votre confiance,
 L'équipe SmartCaisse
 '''
+
+    # Attacher le PDF
+    msg.attach(
+        filename=f'facture_{invoice.numero}.pdf',
+        content_type='application/pdf',
+        data=pdf_buffer.getvalue()
+    )
 
     return _send_email_production(msg)
 
