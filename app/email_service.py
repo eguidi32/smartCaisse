@@ -307,7 +307,122 @@ L'équipe SmartCaisse
     return _send_email_production(msg)
 
 
-def _send_email_production(msg):
+def send_invoice_email(invoice, client):
+    """
+    Envoie une facture au client par email
+
+    Args:
+        invoice: Objet Invoice
+        client: Objet Client (optionnel, si None utilise invoice.client_name)
+    """
+    # Si pas de client avec email, pas d'envoi
+    if not client or not client.email:
+        return False
+
+    # Mode développement
+    if not current_app.config.get('MAIL_USERNAME'):
+        print('\n' + '=' * 70)
+        print('MODE DEVELOPPEMENT - Envoi facture:')
+        print(f'Destinataire: {client.email}')
+        print(f'Client: {client.nom}')
+        print(f'Facture: {invoice.numero}')
+        print(f'Total: {invoice.total:.2f} FCFA')
+        print('=' * 70 + '\n')
+        return True
+
+    # Construire le message
+    msg = Message(
+        subject=f'SmartCaisse - Facture {invoice.numero}',
+        recipients=[client.email]
+    )
+
+    # Générer liste des articles
+    items_html = ''
+    for item in invoice.items:
+        items_html += f'''
+        <tr style="border-bottom: 1px solid #dee2e6;">
+            <td style="padding: 10px;">{item.product_name}</td>
+            <td style="padding: 10px; text-align: center;">{item.quantity}</td>
+            <td style="padding: 10px; text-align: right;">{item.unit_price:.2f} FCFA</td>
+            <td style="padding: 10px; text-align: right; font-weight: bold;">{item.total:.2f} FCFA</td>
+        </tr>
+        '''
+
+    msg.html = f'''
+    <html>
+        <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+            <div style="max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #0d6efd; padding: 20px; text-align: center; border-radius: 5px 5px 0 0;">
+                    <h1 style="color: white; margin: 0;">SmartCaisse</h1>
+                </div>
+                <div style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 5px 5px; border: 1px solid #dee2e6; border-top: none;">
+                    <p>Bonjour <strong>{client.nom}</strong>,</p>
+                    <p>Veuillez trouver ci-dessous votre facture:</p>
+
+                    <div style="margin-top: 20px; background-color: #fff; padding: 15px; border-radius: 5px; border: 1px solid #dee2e6;">
+                        <h3 style="color: #0d6efd; margin-top: 0;">Facture #{invoice.numero}</h3>
+                        <p><strong>Date:</strong> {invoice.date.strftime('%d/%m/%Y')}</p>
+
+                        <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
+                            <tr style="background-color: #e9ecef; border-bottom: 2px solid #dee2e6;">
+                                <th style="padding: 10px; text-align: left;">Article</th>
+                                <th style="padding: 10px; text-align: center;">Quantité</th>
+                                <th style="padding: 10px; text-align: right;">Prix unitaire</th>
+                                <th style="padding: 10px; text-align: right;">Total</th>
+                            </tr>
+                            {items_html}
+                        </table>
+
+                        <div style="margin-top: 20px; text-align: right; padding-top: 15px; border-top: 2px solid #dee2e6;">
+                            <h3 style="color: #0d6efd; margin: 10px 0;">Total: {invoice.total:.2f} FCFA</h3>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 30px; background-color: #e7f3ff; padding: 15px; border-left: 4px solid #0d6efd; border-radius: 3px;">
+                        <p style="margin: 0;"><strong>Modalités de paiement:</strong></p>
+                        <p style="margin: 10px 0 0 0; color: #666;">{invoice.notes if invoice.notes else 'À convenir avec le vendeur'}</p>
+                    </div>
+
+                    <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+                        Merci de votre confiance,<br>
+                        L'équipe SmartCaisse
+                    </p>
+                </div>
+            </div>
+        </body>
+    </html>
+    '''
+
+    msg.body = f'''Bonjour {client.nom},
+
+Veuillez trouver ci-dessous votre facture:
+
+===============================
+FACTURE #{invoice.numero}
+Date: {invoice.date.strftime('%d/%m/%Y')}
+===============================
+
+'''
+    for item in invoice.items:
+        msg.body += f'''{item.product_name}
+  Quantité: {item.quantity}
+  Prix unitaire: {item.unit_price:.2f} FCFA
+  Total: {item.total:.2f} FCFA
+
+'''
+    msg.body += f'''
+===============================
+TOTAL: {invoice.total:.2f} FCFA
+===============================
+
+Modalités de paiement:
+{invoice.notes if invoice.notes else 'À convenir avec le vendeur'}
+
+Merci de votre confiance,
+L'équipe SmartCaisse
+'''
+
+    return _send_email_production(msg)
     """
     Envoie l'email en production avec gestion d'erreurs
 

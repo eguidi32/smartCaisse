@@ -113,7 +113,22 @@ def create():
         log_audit('create', 'Invoice', entity_id=invoice.id, new_value=f'numero={invoice.numero}, client={client_name}, total={invoice.total}')
 
         current_app.logger.info(f'Facture créée: {invoice.numero} par {current_user.username}')
-        flash(f'Facture {invoice.numero} créée avec succès!', 'success')
+
+        # Envoyer l'email au client si disponible
+        if client_id:
+            client = Client.query.filter_by(id=client_id, user_id=current_user.id).first()
+            if client and client.email:
+                from app.email_service import send_invoice_email
+                email_result = send_invoice_email(invoice, client)
+                if email_result:
+                    flash(f'Facture {invoice.numero} créée et envoyée par email à {client.email}!', 'success')
+                else:
+                    flash(f'Facture {invoice.numero} créée mais erreur lors de l\'envoi par email.', 'warning')
+            else:
+                flash(f'Facture {invoice.numero} créée avec succès!', 'success')
+        else:
+            flash(f'Facture {invoice.numero} créée avec succès!', 'success')
+
         return redirect(url_for('invoices.detail', id=invoice.id))
     
     # GET: Afficher le formulaire
