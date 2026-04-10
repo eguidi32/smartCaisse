@@ -423,6 +423,9 @@ L'équipe SmartCaisse
 '''
 
     return _send_email_production(msg)
+
+
+def _send_email_production(msg):
     """
     Envoie l'email en production avec gestion d'erreurs
 
