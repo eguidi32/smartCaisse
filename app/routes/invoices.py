@@ -209,6 +209,7 @@ def delete(id):
     invoice = Invoice.query.filter_by(id=id, user_id=current_user.id).first_or_404()
 
     numero = invoice.numero
+    product_ids_to_update = set()
 
     # Si la facture a été confirmée (envoyée), reverser les mouvements de stock
     if invoice.status == 'envoyée':
@@ -223,9 +224,16 @@ def delete(id):
                 created_by_id=current_user.id
             )
             db.session.add(reverse_movement)
+            product_ids_to_update.add(item.product_id)
 
     db.session.delete(invoice)
     db.session.commit()
+
+    # Mettre à jour le cache du stock pour chaque produit
+    if product_ids_to_update:
+        from app.routes.inventory import update_product_stock_cache
+        for product_id in product_ids_to_update:
+            update_product_stock_cache(product_id)
 
     # Logger l'action
     log_audit('delete', 'Invoice', entity_id=id, new_value=f'deleted_invoice_numero={numero}')
@@ -262,6 +270,7 @@ def send_invoice(id):
         invoice.status = 'envoyée'
 
         # Créer les mouvements de stock (sortie) pour chaque article
+        product_ids_to_update = set()
         for item in invoice.items:
             stock_movement = StockMovement(
                 product_id=item.product_id,
@@ -272,8 +281,14 @@ def send_invoice(id):
                 created_by_id=current_user.id
             )
             db.session.add(stock_movement)
+            product_ids_to_update.add(item.product_id)
 
         db.session.commit()
+
+        # Mettre à jour le cache du stock pour chaque produit
+        from app.routes.inventory import update_product_stock_cache
+        for product_id in product_ids_to_update:
+            update_product_stock_cache(product_id)
 
         # Envoyer l'email avec PDF
         from app.email_service import send_invoice_email
