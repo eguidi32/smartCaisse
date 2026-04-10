@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models import Invoice, InvoiceItem, Client, Product
+from app.models import Invoice, InvoiceItem, Client, Product, StockMovement
 from app.exports.pdf_generator import PDFGenerator
 from app.exports.excel_generator import ExcelGenerator
 from app.utils import log_audit
@@ -88,7 +88,7 @@ def create():
         # Ajouter les articles
         product_ids = request.form.getlist('product_id[]')
         quantities = request.form.getlist('quantity[]')
-        
+
         for i, product_id in enumerate(product_ids):
             if product_id:
                 product = Product.query.filter_by(id=product_id, user_id=current_user.id).first()
@@ -205,10 +205,25 @@ def edit(id):
 @bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
 def delete(id):
-    """Supprimer une facture"""
+    """Supprimer une facture et reverser les mouvements de stock si nécessaire"""
     invoice = Invoice.query.filter_by(id=id, user_id=current_user.id).first_or_404()
-    
+
     numero = invoice.numero
+
+    # Si la facture a été confirmée (envoyée), reverser les mouvements de stock
+    if invoice.status == 'envoyée':
+        for item in invoice.items:
+            # Créer un mouvement de stock inverse (entrée) pour annuler la sortie
+            reverse_movement = StockMovement(
+                product_id=item.product_id,
+                type='entrée',
+                quantity=item.quantity,
+                reason=f'Annulation facture {invoice.numero}',
+                notes=f'Retour de stock suite suppression facture',
+                created_by_id=current_user.id
+            )
+            db.session.add(reverse_movement)
+
     db.session.delete(invoice)
     db.session.commit()
 
@@ -240,18 +255,32 @@ def mark_paid(id):
 @bp.route('/<int:id>/send', methods=['POST'])
 @login_required
 def send_invoice(id):
-    """Marquer une facture comme envoyée"""
+    """Marquer une facture comme envoyée et créer les mouvements de stock"""
     invoice = Invoice.query.filter_by(id=id, user_id=current_user.id).first_or_404()
-    
+
     if invoice.status == 'brouillon':
         invoice.status = 'envoyée'
+
+        # Créer les mouvements de stock (sortie) pour chaque article
+        for item in invoice.items:
+            stock_movement = StockMovement(
+                product_id=item.product_id,
+                type='sortie',
+                quantity=item.quantity,
+                reason=f'Facture {invoice.numero}',
+                notes=f'Vendu via facture à {invoice.client_name}',
+                created_by_id=current_user.id
+            )
+            db.session.add(stock_movement)
+
         db.session.commit()
 
         # Logger l'action
         log_audit('update', 'Invoice', entity_id=invoice.id, new_value=f'status_changed_to=envoyée, numero={invoice.numero}')
 
-        flash(f'Facture {invoice.numero} marquée comme envoyée!', 'success')
-    
+        current_app.logger.info(f'Facture confirmée et stock réduit: {invoice.numero} par {current_user.username}')
+        flash(f'Facture {invoice.numero} confirmée! Stock réduit.', 'success')
+
     return redirect(url_for('invoices.detail', id=id))
 
 
