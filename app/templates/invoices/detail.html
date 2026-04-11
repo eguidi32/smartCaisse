@@ -116,7 +116,7 @@
                         </form>
                         {% endif %}
                         
-                        {% if invoice.status != 'payée' %}
+                        {% if invoice.status == 'envoyée' %}
                         <form action="{{ url_for('invoices.mark_paid', id=invoice.id) }}" method="POST">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-success w-100">

@@ -248,7 +248,12 @@ def delete(id):
 def mark_paid(id):
     """Marquer une facture comme payée"""
     invoice = Invoice.query.filter_by(id=id, user_id=current_user.id).first_or_404()
-    
+
+    # Vérifier que la facture est envoyée avant de la marquer payée
+    if invoice.status != 'envoyée':
+        flash(f'Impossible - la facture doit être envoyée avant d\'être payée.', 'danger')
+        return redirect(url_for('invoices.detail', id=id))
+
     invoice.mark_as_paid()
     db.session.commit()
 
