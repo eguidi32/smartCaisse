@@ -27,15 +27,21 @@ inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 
 def update_product_stock_cache(product_id):
     """Mettre à jour le cache du stock pour un produit"""
-    product = Product.query.get(product_id)
+    from sqlalchemy.orm import Session
+    product = db.session.query(Product).filter_by(id=product_id).first()
     if not product:
         return
 
-    entries = db.session.query(func.sum(StockMovement.quantity)).filter_by(
-        product_id=product_id, type='entrée'
+    # Query entries - handle both 'entree' and 'entrée' variants
+    entries = db.session.query(func.sum(StockMovement.quantity)).filter(
+        StockMovement.product_id == product_id,
+        StockMovement.type.in_(['entree', 'entrée'])
     ).scalar() or 0
-    exits = db.session.query(func.sum(StockMovement.quantity)).filter_by(
-        product_id=product_id, type='sortie'
+
+    # Query exits - handle both 'sortie' variants
+    exits = db.session.query(func.sum(StockMovement.quantity)).filter(
+        StockMovement.product_id == product_id,
+        StockMovement.type.in_(['sortie'])
     ).scalar() or 0
 
     product.stock_cache = entries - exits
