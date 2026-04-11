@@ -280,15 +280,29 @@ def delete_transaction(id):
 @login_required
 def export_csv():
     """Exporter les transactions en CSV"""
+    import csv
+    from io import StringIO
+
     # Récupérer toutes les transactions de l'utilisateur
     transactions = Transaction.query.filter_by(
         user_id=current_user.id
     ).order_by(Transaction.date.desc()).all()
 
-    # Générer le CSV
-    csv_content = "Date,Type,Description,Catégorie,Montant\n"
+    # Générer le CSV de manière sécurisée
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Date', 'Type', 'Description', 'Catégorie', 'Montant'])
+
     for t in transactions:
-        csv_content += f"{t.date.strftime('%Y-%m-%d')},{t.type},{t.description},{t.category},{t.amount}\n"
+        writer.writerow([
+            t.date.strftime('%Y-%m-%d'),
+            t.type,
+            t.description,
+            t.category,
+            t.amount
+        ])
+
+    csv_content = output.getvalue()
 
     # Retourner comme fichier téléchargeable
     return Response(

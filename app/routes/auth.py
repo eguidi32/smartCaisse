@@ -7,12 +7,20 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_mail import Message
 from werkzeug.security import generate_password_hash
+from urllib.parse import urlparse, urljoin
 from app import db, mail, limiter
 from app.models import User
 from app.utils import log_audit
 
 # Création du Blueprint
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
+
+
+def is_safe_url(target):
+    """Valide que l'URL de redirection est sûre (même domaine)"""
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 # Helper decorator for rate limiting (gracefully handles when limiter is not available)
 def rate_limit(limit_string):
@@ -75,7 +83,9 @@ def login():
 
             # Rediriger vers la page demandée ou le dashboard
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('main.dashboard'))
+            if next_page and is_safe_url(next_page):
+                return redirect(next_page)
+            return redirect(url_for('main.dashboard'))
         else:
             current_app.logger.warning(f'Failed login attempt for email: {email}')
 

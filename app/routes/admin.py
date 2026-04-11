@@ -464,16 +464,35 @@ def user_activity(id):
 @admin_required
 def export_audit_logs_csv():
     """Exporter les audit logs en CSV"""
+    import csv
+    from io import StringIO
+
     # Récupérer tous les audit logs
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
 
-    csv_content = "Timestamp,Utilisateur,Action,Entité,ID,IP,Méthode,Endpoint,Statut,Raison,Nouvelle Valeur\n"
+    # Générer le CSV de manière sécurisée
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Timestamp', 'Utilisateur', 'Action', 'Entité', 'ID', 'IP', 'Méthode', 'Endpoint', 'Statut', 'Raison', 'Nouvelle Valeur'])
+
     for log in logs:
         username = log.user.username if log.user else "System"
         timestamp = log.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        csv_content += f'{timestamp},"{username}","{log.action}","{log.entity_type}",{log.entity_id or ""},'
-        csv_content += f'"{log.ip_address or ""}","{log.method or ""}","{log.endpoint or ""}","{log.status}",'
-        csv_content += f'"{log.reason or ""}","{log.new_value or ""}"\n'
+        writer.writerow([
+            timestamp,
+            username,
+            log.action,
+            log.entity_type,
+            log.entity_id or '',
+            log.ip_address or '',
+            log.method or '',
+            log.endpoint or '',
+            log.status,
+            log.reason or '',
+            log.new_value or ''
+        ])
+
+    csv_content = output.getvalue()
 
     from flask import Response
     return Response(
