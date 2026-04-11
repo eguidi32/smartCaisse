@@ -169,7 +169,7 @@ def create_app(config_class=Config):
             db.create_all()
             app.logger.info('Database tables created')
 
-    
+
     # Initialiser le scheduler pour tâches périodiques (désactivé en production PythonAnywhere)
     # PythonAnywhere gère les tâches planifiées via son propre système de tâches
     # if not app.debug and app.config['FLASK_ENV'] == 'production':
@@ -178,6 +178,30 @@ def create_app(config_class=Config):
     #         init_scheduler(app)
     #     except Exception as e:
     #         app.logger.error(f'Failed to initialize scheduler: {e}')
+
+    # ========================================
+    # SECURITY HEADERS
+    # ========================================
+    @app.after_request
+    def set_security_headers(response):
+        """Ajoute les headers de sécurité à chaque réponse"""
+        # Empêche le MIME type sniffing (XSS protection)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        # Empêche le clickjacking (frame embedding)
+        response.headers['X-Frame-Options'] = 'DENY'
+
+        # Protection XSS navigateur
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+
+        # Contrôle le référrer
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # HSTS en production
+        if app.config.get('FORCE_HTTPS'):
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+
+        return response
 
     return app
 

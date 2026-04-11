@@ -94,9 +94,10 @@ class Config:
     SESSION_COOKIE_SECURE = FORCE_HTTPS  # HTTPS only
     SESSION_COOKIE_HTTPONLY = True  # Pas accessible via JavaScript
     SESSION_COOKIE_SAMESITE = 'Lax'  # Protection CSRF
-    
-    # Durée session (30 jours)
-    PERMANENT_SESSION_LIFETIME = 2592000
+
+    # Durée session (1 heure max pour sécurité financière)
+    # Avant: 2592000 (30 jours) - TROP LONG pour une app financière
+    PERMANENT_SESSION_LIFETIME = 3600  # 1 heure
 
     # ============================================
     # APPLICATION URLs

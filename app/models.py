@@ -6,7 +6,7 @@ Modèles de base de données pour SmartCaisse
 - Dette : dettes des clients
 - Paiement : paiements sur les dettes
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import current_app
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -51,6 +51,10 @@ class User(UserMixin, db.Model):
     must_change_password = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
+
+    # Sécurité - Account lockout après tentatives échouées
+    failed_login_attempts = db.Column(db.Integer, default=0)  # Compte les tentatives échouées
+    locked_until = db.Column(db.DateTime, nullable=True)  # Verrouillé jusqu'à cette date
     
     # Détails entreprise pour factures
     company_name = db.Column(db.String(150), nullable=True)
@@ -85,6 +89,31 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Vérifie si le mot de passe fourni correspond au hash"""
         return check_password_hash(self.password_hash, password)
+
+    def is_locked(self):
+        """Vérifie si le compte est verrouillé"""
+        if self.locked_until and datetime.utcnow() < self.locked_until:
+            return True
+        else:
+            # Le verrouillage a expiré, remise à zéro
+            if self.locked_until:
+                self.locked_until = None
+                self.failed_login_attempts = 0
+            return False
+
+    def record_failed_login(self):
+        """Enregistre une tentative échouée et verrouille si nécessaire"""
+        self.failed_login_attempts += 1
+
+        # Verrouiller après 5 tentatives échouées pendant 15 minutes
+        if self.failed_login_attempts >= 5:
+            self.locked_until = datetime.utcnow() + timedelta(minutes=15)
+
+    def record_successful_login(self):
+        """Réinitialise le compte après une connexion réussie"""
+        self.failed_login_attempts = 0
+        self.locked_until = None
+        self.last_login = datetime.utcnow()
 
     @property
     def is_admin(self):

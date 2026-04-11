@@ -48,7 +48,7 @@ def send_welcome_email(user, temp_password):
         print('MODE DEVELOPPEMENT - Email de bienvenue:')
         print(f'Destinataire: {user.email}')
         print(f'Nom d\'utilisateur: {user.username}')
-        print(f'Mot de passe temporaire: {temp_password}')
+        print('Un mot de passe temporaire a été généré et envoyé par email')
         print(f'Lien de connexion: {login_url}')
         print('=' * 60 + '\n')
         return True
@@ -132,7 +132,7 @@ def send_password_reset_email(user, temp_password):
         print('\n' + '=' * 60)
         print('MODE DEVELOPPEMENT - Réinitialisation mot de passe:')
         print(f'Destinataire: {user.email}')
-        print(f'Nouveau mot de passe temporaire: {temp_password}')
+        print('Un nouveau mot de passe temporaire a été généré et envoyé par email')
         print(f'Lien de connexion: {login_url}')
         print('=' * 60 + '\n')
         return True

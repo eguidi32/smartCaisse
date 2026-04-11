@@ -94,6 +94,13 @@ def login():
 
         user = User.query.filter_by(email=email).first()
 
+        # Vérifier si le compte est verrouillé
+        if user and user.is_locked():
+            flash('Compte verrouillé après trop de tentatives. Réessayez dans 15 minutes.', 'danger')
+            log_audit('login', 'User', entity_id=user.id, reason='Account locked due to failed attempts', status='error')
+            current_app.logger.warning(f'Login attempt on locked account: {email}')
+            return render_template('auth/login.html')
+
         if user and user.check_password(password):
             # Vérifier si le compte est actif
             if not user.is_active:
@@ -101,8 +108,8 @@ def login():
                 flash('Ce compte a été désactivé. Contactez un administrateur.', 'danger')
                 return render_template('auth/login.html')
 
-            # Mettre à jour la date de dernière connexion
-            user.last_login = datetime.utcnow()
+            # Connexion réussie - réinitialiser les tentatives échouées
+            user.record_successful_login()
             db.session.commit()
 
             login_user(user, remember=bool(remember))
@@ -124,12 +131,22 @@ def login():
                 return redirect(next_page)
             return redirect(url_for('main.dashboard'))
         else:
+            # Tentative échouée - enregistrer et verrouiller si nécessaire
+            if user:
+                user.record_failed_login()
+                db.session.commit()
+
+                if user.is_locked():
+                    flash('Compte verrouillé après trop de tentatives. Réessayez dans 15 minutes.', 'danger')
+                    log_audit('login', 'User', entity_id=user.id, reason='Account locked due to failed attempts', status='error')
+                else:
+                    remaining_attempts = 5 - user.failed_login_attempts
+                    flash(f'Email ou mot de passe incorrect. ({remaining_attempts} tentatives restantes)', 'danger')
+                    log_audit('login', 'User', entity_id=user.id, reason=f'Failed login attempt ({user.failed_login_attempts}/5)', status='error')
+            else:
+                flash('Email ou mot de passe incorrect.', 'danger')
+
             current_app.logger.warning(f'Failed login attempt for email: {email}')
-
-            # Logger l'action (échec de connexion)
-            log_audit('login', 'User', reason=f'Failed login for email: {email}', status='error')
-
-            flash('Email ou mot de passe incorrect.', 'danger')
 
     return render_template('auth/login.html')
 
