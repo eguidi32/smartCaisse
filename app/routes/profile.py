@@ -6,6 +6,7 @@ Routes pour le profil utilisateur
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
+from app.utils import validate_password
 
 # Création du Blueprint
 profile_bp = Blueprint('profile', __name__, url_prefix='/profile')
@@ -34,9 +35,10 @@ def change_password():
             if not current_user.check_password(current_password):
                 errors.append('Mot de passe actuel incorrect.')
 
-        # Valider le nouveau mot de passe
-        if len(new_password) < 6:
-            errors.append('Le nouveau mot de passe doit avoir au moins 6 caractères.')
+        # Valider le nouveau mot de passe avec critères strictes
+        is_valid, error_msg = validate_password(new_password)
+        if not is_valid:
+            errors.append(error_msg)
 
         if new_password != confirm_password:
             errors.append('Les mots de passe ne correspondent pas.')

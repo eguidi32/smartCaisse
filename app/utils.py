@@ -83,3 +83,39 @@ def audit_action(action, entity_type):
                 raise
         return decorated_function
     return decorator
+
+
+def validate_password(password):
+    """Valide la force du mot de passe
+
+    Critères:
+    - Minimum 12 caractères
+    - Au moins une majuscule
+    - Au moins une minuscule
+    - Au moins un chiffre
+    - Au moins un caractère spécial
+
+    Retourne: (is_valid: bool, error_message: str or None)
+    """
+    errors = []
+
+    if len(password) < 12:
+        errors.append('Au moins 12 caractères')
+
+    if not any(c.isupper() for c in password):
+        errors.append('Au moins une majuscule (A-Z)')
+
+    if not any(c.islower() for c in password):
+        errors.append('Au moins une minuscule (a-z)')
+
+    if not any(c.isdigit() for c in password):
+        errors.append('Au moins un chiffre (0-9)')
+
+    if not any(c in '!@#$%^&*()-_=+[]{}|;:,.<>?' for c in password):
+        errors.append('Au moins un caractère spécial (!@#$%^&* etc.)')
+
+    if errors:
+        msg = 'Le mot de passe doit avoir: ' + ', '.join(errors) + '.'
+        return False, msg
+
+    return True, None

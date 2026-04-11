@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 from urllib.parse import urlparse, urljoin
 from app import db, mail, limiter
 from app.models import User
-from app.utils import log_audit
+from app.utils import log_audit, validate_password
 
 # Création du Blueprint
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -21,6 +21,43 @@ def is_safe_url(target):
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+
+
+def validate_password(password):
+    """Valide la force du mot de passe
+
+    Critères:
+    - Minimum 12 caractères
+    - Au moins une majuscule
+    - Au moins une minuscule
+    - Au moins un chiffre
+    - Au moins un caractère spécial
+
+    Retourne: (is_valid: bool, error_message: str or None)
+    """
+    errors = []
+
+    if len(password) < 12:
+        errors.append('Au moins 12 caractères')
+
+    if not any(c.isupper() for c in password):
+        errors.append('Au moins une majuscule (A-Z)')
+
+    if not any(c.islower() for c in password):
+        errors.append('Au moins une minuscule (a-z)')
+
+    if not any(c.isdigit() for c in password):
+        errors.append('Au moins un chiffre (0-9)')
+
+    if not any(c in '!@#$%^&*()-_=+[]{}|;:,.<>?' for c in password):
+        errors.append('Au moins un caractère spécial (!@#$%^&* etc.)')
+
+    if errors:
+        msg = 'Le mot de passe doit avoir: ' + ', '.join(errors) + '.'
+        return False, msg
+
+    return True, None
+
 
 # Helper decorator for rate limiting (gracefully handles when limiter is not available)
 def rate_limit(limit_string):
@@ -235,8 +272,10 @@ def reset_password(token):
 
         errors = []
 
-        if len(password) < 6:
-            errors.append('Le mot de passe doit contenir au moins 6 caractères.')
+        # Valider le mot de passe avec les critères stricts
+        is_valid, error_msg = validate_password(password)
+        if not is_valid:
+            errors.append(error_msg)
 
         if password != confirm_password:
             errors.append('Les mots de passe ne correspondent pas.')
