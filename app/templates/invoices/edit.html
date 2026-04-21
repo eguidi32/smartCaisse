@@ -68,7 +68,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="itemsBody">
-                                    {% for item in invoice.items %}
+                                    {% for item in invoice.items.all() %}
                                     <tr class="item-row">
                                         <td>
                                             <select name="product_id[]" class="form-select product-select" onchange="updatePrice(this)">
@@ -82,7 +82,7 @@
                                             </select>
                                         </td>
                                         <td>
-                                            <input type="number" name="quantity[]" class="form-control qty-input" 
+                                            <input type="number" name="quantity[]" class="form-control qty-input"
                                                    value="{{ item.quantity }}" min="1" onchange="calculateTotal()">
                                         </td>
                                         <td>

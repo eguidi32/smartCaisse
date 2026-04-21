@@ -658,7 +658,7 @@ class Invoice(db.Model):
     paid_at = db.Column(db.DateTime, nullable=True)
 
     # Relations
-    items = db.relationship('InvoiceItem', backref='invoice', lazy='select',
+    items = db.relationship('InvoiceItem', backref='invoice', lazy='dynamic',
                             cascade='all, delete-orphan')
     client = db.relationship('Client', backref='invoices')
 
@@ -683,7 +683,7 @@ class Invoice(db.Model):
 
     def calculate_total(self):
         """Recalcule le total à partir des items"""
-        self.total = sum(item.total for item in self.items)
+        self.total = sum(item.total for item in self.items.all())
         return self.total
 
     def mark_as_paid(self):

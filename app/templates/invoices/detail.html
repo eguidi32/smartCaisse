@@ -62,7 +62,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in invoice.items %}
+                                {% for item in invoice.items.all() %}
                                 <tr>
                                     <td>{{ item.product_name }}</td>
                                     <td class="text-center">{{ item.quantity }}</td>
