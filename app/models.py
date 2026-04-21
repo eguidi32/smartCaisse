@@ -658,7 +658,7 @@ class Invoice(db.Model):
     paid_at = db.Column(db.DateTime, nullable=True)
 
     # Relations
-    items = db.relationship('InvoiceItem', backref='invoice', lazy='dynamic',
+    items = db.relationship('InvoiceItem', backref='invoice', lazy='select',
                             cascade='all, delete-orphan')
     client = db.relationship('Client', backref='invoices')
 

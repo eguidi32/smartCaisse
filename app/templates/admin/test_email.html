@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow">
+                <div class="card-header bg-warning">
+                    <h4 class="mb-0">⚙️ Test de Configuration Email</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>ℹ️ Diagnostic des emails</strong><br>
+                        Utilisez cet outil pour vérifier que la configuration email est correcte et que les emails peuvent être envoyés.
+                    </div>
+
+                    <form method="POST" class="needs-validation">
+                        <div class="mb-3">
+                            <label for="test_email" class="form-label">Adresse email de test</label>
+                            <input type="email"
+                                   class="form-control"
+                                   id="test_email"
+                                   name="test_email"
+                                   required
+                                   placeholder="votre.email@example.com"
+                                   value="{{ request.form.get('test_email', '') }}">
+                            <small class="text-muted">Un email de test sera envoyé à cette adresse</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-envelope"></i> Envoyer Email de Test
+                        </button>
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Retour</a>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <div class="alert alert-secondary">
+                        <h5>Informations de Configuration</h5>
+                        <ul class="mb-0">
+                            <li><strong>Serveur SMTP:</strong> {{ config.get('MAIL_SERVER') }}</li>
+                            <li><strong>Port:</strong> {{ config.get('MAIL_PORT') }}</li>
+                            <li><strong>TLS activé:</strong> {{ config.get('MAIL_USE_TLS') }}</li>
+                            <li><strong>Adresse expéditeur:</strong> {{ config.get('MAIL_DEFAULT_SENDER') }}</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-danger">
+                        <h5>Troubleshooting</h5>
+                        <p><strong>Si le test échoue:</strong></p>
+                        <ol class="mb-0">
+                            <li>Vérifiez que le fichier <code>.env</code> sur PythonAnywhere contient les bonnes identifiants Gmail</li>
+                            <li>L'app password Gmail doit être généré sur <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a></li>
+                            <li>Vérifiez que Reload a été cliqué après modification du .env</li>
+                            <li>Consultez les logs de l'application pour plus de détails</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card-header {
+        border-bottom: 2px solid #ffc107;
+    }
+</style>
+{% endblock %}

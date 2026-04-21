@@ -1,6 +1,3 @@
-"""
-Routes pour la gestion des factures
-"""
 from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required, current_user
@@ -90,10 +87,17 @@ def create():
         quantities = request.form.getlist('quantity[]')
 
         for i, product_id in enumerate(product_ids):
-            if product_id:
+            if product_id and product_id.strip():  # Vérifie que product_id n'est pas vide
                 product = Product.query.filter_by(id=product_id, user_id=current_user.id).first()
                 if product:
-                    qty = int(quantities[i]) if i < len(quantities) and quantities[i] else 1
+                    qty_str = quantities[i] if i < len(quantities) else '1'
+                    try:
+                        qty = int(qty_str) if qty_str and qty_str.strip() else 1
+                        if qty <= 0:
+                            qty = 1
+                    except (ValueError, TypeError):
+                        qty = 1
+
                     item = InvoiceItem(
                         invoice_id=invoice.id,
                         product_id=product.id,
@@ -167,12 +171,19 @@ def edit(id):
         # Ajouter les nouveaux articles
         product_ids = request.form.getlist('product_id[]')
         quantities = request.form.getlist('quantity[]')
-        
+
         for i, product_id in enumerate(product_ids):
-            if product_id:
+            if product_id and product_id.strip():  # Vérifie que product_id n'est pas vide
                 product = Product.query.filter_by(id=product_id, user_id=current_user.id).first()
                 if product:
-                    qty = int(quantities[i]) if i < len(quantities) and quantities[i] else 1
+                    qty_str = quantities[i] if i < len(quantities) else '1'
+                    try:
+                        qty = int(qty_str) if qty_str and qty_str.strip() else 1
+                        if qty <= 0:
+                            qty = 1
+                    except (ValueError, TypeError):
+                        qty = 1
+
                     item = InvoiceItem(
                         invoice_id=invoice.id,
                         product_id=product.id,

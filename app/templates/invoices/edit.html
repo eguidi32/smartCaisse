@@ -254,19 +254,42 @@ function formatNumber(num) {
 document.getElementById('invoiceForm').addEventListener('submit', function(e) {
     const clientName = document.getElementById('clientName').value.trim();
     const clientSelect = document.getElementById('clientSelect').value;
-    
+
     if (!clientName && !clientSelect) {
         e.preventDefault();
         alert('Veuillez sélectionner ou saisir un nom de client.');
         return false;
     }
-    
+
     // Vérifier qu'au moins un produit est sélectionné
     let hasProduct = false;
-    document.querySelectorAll('.product-select').forEach(select => {
-        if (select.value) hasProduct = true;
+    let emptyRows = 0;
+
+    document.querySelectorAll('.item-row').forEach(row => {
+        const select = row.querySelector('.product-select');
+        const qty = row.querySelector('.qty-input').value;
+
+        if (select && select.value) {
+            hasProduct = true;
+            // Vérifier que la quantité est valide
+            const qtyNum = parseInt(qty) || 0;
+            if (qtyNum <= 0) {
+                alert('Veuillez vérifier les quantités. Elles doivent être > 0.');
+                e.preventDefault();
+                return false;
+            }
+        } else if (select && !select.value && qty && parseInt(qty) > 0) {
+            // Ligne avec quantité mais pas de produit = erreur
+            emptyRows++;
+        }
     });
-    
+
+    if (emptyRows > 0) {
+        e.preventDefault();
+        alert('Veuillez sélectionner un produit pour chaque ligne avec quantité.');
+        return false;
+    }
+
     if (!hasProduct) {
         e.preventDefault();
         alert('Veuillez ajouter au moins un produit.');

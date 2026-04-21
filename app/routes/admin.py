@@ -117,9 +117,12 @@ L'équipe SmartCaisse
 
     try:
         mail.send(msg)
+        current_app.logger.info(f'Welcome email sent to {user.email}')
         return True
     except Exception as e:
-        current_app.logger.error(f'Erreur envoi email de bienvenue: {e}')
+        error_msg = str(e)
+        current_app.logger.error(f'Email send failed for {user.email}: {error_msg}')
+        current_app.logger.error(f'Email config - Server: {current_app.config.get("MAIL_SERVER")}, Port: {current_app.config.get("MAIL_PORT")}, TLS: {current_app.config.get("MAIL_USE_TLS")}')
         return False
 
 
@@ -198,9 +201,12 @@ L'équipe SmartCaisse
 
     try:
         mail.send(msg)
+        current_app.logger.info(f'Password reset email sent to {user.email}')
         return True
     except Exception as e:
-        current_app.logger.error(f'Erreur envoi email réinitialisation: {e}')
+        error_msg = str(e)
+        current_app.logger.error(f'Email send failed for {user.email}: {error_msg}')
+        current_app.logger.error(f'Email config - Server: {current_app.config.get("MAIL_SERVER")}, Port: {current_app.config.get("MAIL_PORT")}, TLS: {current_app.config.get("MAIL_USE_TLS")}')
         return False
 
 
@@ -778,3 +784,67 @@ def delete_user(id):
 
     flash(f'Utilisateur "{username}" supprimé.', 'info')
     return redirect(url_for('admin.list_users'))
+
+
+# ============================================
+# DIAGNOSTIC - TEST EMAIL
+# ============================================
+
+@admin_bp.route('/test-email', methods=['GET', 'POST'])
+@admin_required
+def test_email():
+    """Route pour tester la configuration emails"""
+    if request.method == 'POST':
+        test_email_addr = request.form.get('test_email', '') .strip().lower()
+
+        if not test_email_addr or '@' not in test_email_addr:
+            flash('Adresse email invalide.', 'danger')
+            return render_template('admin/test_email.html')
+
+        # Vérifier configuration email
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+
+        if not mail_username or not mail_password:
+            flash('❌ Configuration email incomplète. MAIL_USERNAME ou MAIL_PASSWORD manquant dans .env', 'danger')
+            return render_template('admin/test_email.html')
+
+        # Envoyer email de test
+        msg = Message(
+            subject='SmartCaisse - Email de Test',
+            recipients=[test_email_addr],
+            body=f'Ceci est un email de test depuis SmartCaisse.\n\nTimestamp: {datetime.utcnow().isoformat()}\n\nConfiguration:\n- Server: {current_app.config.get("MAIL_SERVER")}\n- Port: {current_app.config.get("MAIL_PORT")}\n- TLS: {current_app.config.get("MAIL_USE_TLS")}\n- Username: {mail_username}',
+            html=f'''
+<html>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2 style="color: #0d6efd;">SmartCaisse - Email de Test</h2>
+    <p>✓ La configuration email fonctionne correctement !</p>
+    <p><strong>Timestamp:</strong> {datetime.utcnow().isoformat()}</p>
+    <hr>
+    <p style="color: #666; font-size: 12px;">
+        <strong>Configuration détectée:</strong><br>
+        Server: {current_app.config.get("MAIL_SERVER")}<br>
+        Port: {current_app.config.get("MAIL_PORT")}<br>
+        TLS: {current_app.config.get("MAIL_USE_TLS")}<br>
+        Username: {mail_username}
+    </p>
+</body>
+</html>
+'''
+        )
+
+        try:
+            mail.send(msg)
+            flash(f'✓ Email de test envoyé avec succès à {test_email_addr} !', 'success')
+            log_audit('test_email', 'Email', reason=f'Test email sent to {test_email_addr}', status='success')
+            current_app.logger.info(f'Test email sent to {test_email_addr}')
+        except Exception as e:
+            error_msg = str(e)
+            flash(f'❌ Erreur lors de l\'envoi: {error_msg}', 'danger')
+            log_audit('test_email', 'Email', reason=f'Test email failed: {error_msg}', status='error')
+            current_app.logger.error(f'Test email failed: {error_msg}')
+            current_app.logger.error(f'Full error: {type(e).__name__}: {e}')
+
+        return render_template('admin/test_email.html')
+
+    return render_template('admin/test_email.html')
