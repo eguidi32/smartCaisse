@@ -372,8 +372,8 @@ class PDFGenerator:
         """Génère un PDF de facture professionnel avec mise en page moderne"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
-                               rightMargin=1.5*cm, leftMargin=1.5*cm,
-                               topMargin=1*cm, bottomMargin=1.5*cm)
+                               rightMargin=1*cm, leftMargin=1*cm,
+                               topMargin=0.8*cm, bottomMargin=1.5*cm)
         elements = []
 
         # Nom de la boutique: priorité au username de l'utilisateur
@@ -402,7 +402,7 @@ class PDFGenerator:
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-            ('PADDING', (0, 0), (-1, 0), 12),
+            ('PADDING', (0, 0), (-1, 0), 16),  # Augmenté de 12 à 16
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ]))
         elements.append(header_table)
