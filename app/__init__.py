@@ -201,6 +201,14 @@ def create_app(config_class=Config):
         if app.config.get('FORCE_HTTPS'):
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
 
+        # Empêcher la mise en cache des pages protégées (sécurité post-déconnexion)
+        from flask_login import current_user
+        if current_user.is_authenticated:
+            # Utilisateur connecté: empêcher la mise en cache
+            response.headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+
         return response
 
     return app

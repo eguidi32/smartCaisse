@@ -159,6 +159,54 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- Session Security Script -->
+    {% if current_user.is_authenticated %}
+    <script>
+    /**
+     * Sécurité de session - Empêche l'accès aux pages protégées après déconnexion
+     * Si l'utilisateur clique sur le bouton "Retour" du navigateur après s'être déconnecté,
+     * cette script le redirige vers la page de connexion
+     */
+    window.addEventListener('pageshow', function(event) {
+        // event.persisted indique si la page vient du cache (back button)
+        if (event.persisted) {
+            // Vérifier que l'utilisateur est toujours connecté
+            // Cette vérification est effectuée en rappelant une route protégée
+            fetch('{{ url_for("main.dashboard") }}', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => {
+                // Si 401 (non authentifié), rediriger vers login
+                if (response.status === 401) {
+                    window.location.href = '{{ url_for("auth.login") }}';
+                }
+            }).catch(error => {
+                console.error('Session check error:', error);
+                // En cas d'erreur (offline, etc), accepter la page du cache
+            });
+        }
+
+        // Empêcher l'utilisation du cache par le navigateur
+        if (performance.navigation.type === 2) {
+            // L'utilisateur utilise le bouton retour
+            location.reload();
+        }
+    });
+
+    // Header HTTP pour empêcher le cache
+    if ('caches' in window){
+        caches.keys().then(function(cacheNames){
+            cacheNames.forEach(function(cacheName){
+                caches.delete(cacheName);
+            });
+        });
+    }
+    </script>
+    {% endif %}
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

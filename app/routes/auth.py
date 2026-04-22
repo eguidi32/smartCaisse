@@ -154,7 +154,7 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
-    """Déconnexion"""
+    """Déconnexion sécurisée avec nettoyage complet de la session"""
     user_id = current_user.id
     username = current_user.username
     current_app.logger.info(f'User logged out: {username} (ID: {user_id})')
@@ -162,9 +162,19 @@ def logout():
     # Logger l'action avant de déconnecter l'utilisateur
     log_audit('logout', 'User', entity_id=user_id, status='success')
 
+    # Déconnecter l'utilisateur
     logout_user()
-    flash('Vous avez été déconnecté.', 'info')
-    return redirect(url_for('auth.login'))
+
+    # Créer une réponse de redirection
+    response = redirect(url_for('auth.login'))
+
+    # Headers pour empêcher la mise en cache après déconnexion
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+
+    flash('Vous avez été déconnecté. Votre session a été supprimée.', 'info')
+    return response
 
 
 def send_reset_email(user):

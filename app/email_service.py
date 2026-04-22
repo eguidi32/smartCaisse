@@ -455,3 +455,7 @@ def _send_email_production(msg):
     except Exception as e:
         current_app.logger.error(f'Erreur lors de l\'envoi d\'email: {e}')
         return False
+
+
+
+
