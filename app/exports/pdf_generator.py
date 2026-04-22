@@ -376,9 +376,14 @@ class PDFGenerator:
                                topMargin=1*cm, bottomMargin=1.5*cm)
         elements = []
 
-        # Nom de la boutique (company_name ou username)
-        shop_name = (user.company_name if user and user.company_name else
-                     (user.username if user else 'SmartCaisse'))
+        # Nom de la boutique: priorité au username de l'utilisateur
+        # (company_name est optionnel pour les boutiques professionnelles)
+        if user:
+            shop_name = user.username  # Utiliser le username par défaut
+            if user.company_name and user.company_name.strip():
+                shop_name = user.company_name  # Utiliser company_name s'il est défini et non vide
+        else:
+            shop_name = 'SmartCaisse'
 
         # ========================================
         # EN-TÊTE PROFESSIONNEL (Bande bleue claire)
