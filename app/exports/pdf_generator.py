@@ -381,7 +381,7 @@ class PDFGenerator:
                      (user.username if user else 'SmartCaisse'))
 
         # ========================================
-        # EN-TÊTE PROFESSIONNEL (Bande bleue)
+        # EN-TÊTE PROFESSIONNEL (Bande bleue claire)
         # ========================================
         header_left_text = f"<font size=14><b>{shop_name}</b></font>"
         header_right_text = f"<font size=16><b>{invoice.numero}</b></font>"
@@ -393,15 +393,15 @@ class PDFGenerator:
 
         header_table = Table(header_data, colWidths=[10*cm, 6*cm])
         header_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e5a96')),  # Bleu professionnel
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),  # Bleu clair
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-            ('PADDING', (0, 0), (-1, 0), 15),
+            ('PADDING', (0, 0), (-1, 0), 12),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ]))
         elements.append(header_table)
-        elements.append(Spacer(1, 15))
+        elements.append(Spacer(1, 12))
 
         # ========================================
         # SECTION INFOS (Émetteur + Détails)
@@ -426,26 +426,12 @@ class PDFGenerator:
             emitter_text += '</font>'
 
         # Détails facture (droite)
-        details_text = ''
-        # Statut badge
-        status_colors = {
-            'brouillon': '#95a5a6',  # Gris
-            'envoyée': '#3498db',    # Bleu
-            'payée': '#27ae60',       # Vert
-            'annulée': '#e74c3c'      # Rouge
-        }
-        status_color = status_colors.get(invoice.status, '#95a5a6')
-        status_text = invoice.status.upper()
-
-        details_text = f'''
-        <font size=9><b>DÉTAILS</b></font><br/>
-        <br/>
-        <font size=8><b>Date:</b> {invoice.date.strftime('%d/%m/%Y')}</font><br/>
-        <font size=8><b>Statut:</b> <font color="{status_color}"><b>● {status_text}</b></font></font><br/>
-        <br/>
-        <font size=9><b>FACTURÉ À</b></font><br/>
-        <font size=10><b>{invoice.client_name}</b></font>
-        '''
+        details_text = f'''<font size=9><b>DÉTAILS</b></font><br/>
+Date: {invoice.date.strftime('%d/%m/%Y')}<br/>
+Statut: <font color="#3498db"><b>● {invoice.status.upper()}</b></font><br/>
+<br/>
+<font size=9><b>FACTURÉ À</b></font><br/>
+<font size=10><b>{invoice.client_name}</b></font>'''
 
         # Layout deux colonnes
         info_data = [[
@@ -461,7 +447,7 @@ class PDFGenerator:
             ('PADDING', (0, 0), (-1, -1), 12),
         ]))
         elements.append(info_table)
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 15))
 
         # ========================================
         # TABLEAU DES ARTICLES
@@ -477,32 +463,31 @@ class PDFGenerator:
 
         # Ligne total
         data.append([
-            Paragraph('<b>TOTAL GÉNÉRAL</b>', self.styles['Normal']),
             '',
             '',
-            Paragraph(f'<b>{invoice.total:.0f} FCFA</b>', self.styles['RightAligned'])
+            'TOTAL:',
+            f"{invoice.total:.0f} FCFA"
         ])
 
         table = Table(data, colWidths=[7*cm, 2.5*cm, 3.5*cm, 3.5*cm])
         table.setStyle(TableStyle([
-            # En-tête bleu
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e5a96')),
+            # En-tête bleu clair
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
 
             # Ligne total
             ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#ecf0f1')),
-            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#1e5a96')),
-            ('ALIGN', (0, -1), (0, -1), 'LEFT'),
-            ('ALIGN', (1, -1), (-1, -1), 'RIGHT'),
+            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#2c3e50')),
+            ('ALIGN', (2, -1), (-1, -1), 'RIGHT'),
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, -1), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, -1), (-1, -1), 12),
-            ('TOPPADDING', (0, -1), (-1, -1), 12),
+            ('FONTSIZE', (0, -1), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, -1), (-1, -1), 10),
+            ('TOPPADDING', (0, -1), (-1, -1), 10),
 
             # Corps du tableau
             ('BACKGROUND', (0, 1), (-1, -2), colors.white),
@@ -510,26 +495,26 @@ class PDFGenerator:
             ('ALIGN', (0, 1), (0, -2), 'LEFT'),
             ('ALIGN', (1, 1), (-1, -2), 'CENTER'),
             ('FONTSIZE', (0, 1), (-1, -2), 9),
-            ('BOTTOMPADDING', (0, 1), (-1, -2), 10),
-            ('TOPPADDING', (0, 1), (-1, -2), 10),
+            ('BOTTOMPADDING', (0, 1), (-1, -2), 8),
+            ('TOPPADDING', (0, 1), (-1, -2), 8),
 
             # Alternance couleurs
-            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f0f7ff')]),
 
             # Grille
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
-            ('LINEABOVE', (0, -1), (-1, -1), 1.5, colors.HexColor('#1e5a96')),
+            ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#3498db')),
         ]))
         elements.append(table)
 
         # Notes si présent
         if invoice.notes:
             elements.append(Spacer(1, 15))
-            notes_text = f"<b>📝 Notes:</b> {invoice.notes}"
+            notes_text = f"<b>Notes:</b> {invoice.notes}"
             elements.append(Paragraph(notes_text, self.styles['Normal']))
 
         # Pied de page
-        elements.append(Spacer(1, 30))
+        elements.append(Spacer(1, 25))
         footer_text = f"<font size=8 color='#7f8c8d'>Facture générée par SmartCaisse le {datetime.now().strftime('%d/%m/%Y à %H:%M')}"
         if user and user.company_website:
             footer_text += f" | {user.company_website}"
