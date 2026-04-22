@@ -396,7 +396,7 @@ class PDFGenerator:
             Paragraph(header_right_text, self.styles['RightAligned'])
         ]]
 
-        header_table = Table(header_data, colWidths=[10*cm, 6*cm])
+        header_table = Table(header_data)
         header_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),  # Bleu clair
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
