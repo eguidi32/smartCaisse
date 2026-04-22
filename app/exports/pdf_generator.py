@@ -369,108 +369,173 @@ class PDFGenerator:
         return buffer
     
     def generate_invoice_pdf(self, invoice, user=None):
-        """Génère un PDF de facture professionnel"""
+        """Génère un PDF de facture professionnel avec mise en page moderne"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
-                               rightMargin=2*cm, leftMargin=2*cm,
-                               topMargin=2*cm, bottomMargin=2*cm)
+                               rightMargin=1.5*cm, leftMargin=1.5*cm,
+                               topMargin=1*cm, bottomMargin=1.5*cm)
         elements = []
 
         # Nom de la boutique (company_name ou username)
         shop_name = (user.company_name if user and user.company_name else
                      (user.username if user else 'SmartCaisse'))
 
-        # En-tête: FACTURE au-dessus et centré
-        title_data = [[Paragraph(f"<font size=18><b>FACTURE</b></font>", self.styles['Normal'])]]
-        title_table = Table(title_data, colWidths=[16*cm])
-        title_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-        ]))
-        elements.append(title_table)
+        # ========================================
+        # EN-TÊTE PROFESSIONNEL (Bande bleue)
+        # ========================================
+        header_left_text = f"<font size=14><b>{shop_name}</b></font>"
+        header_right_text = f"<font size=16><b>{invoice.numero}</b></font>"
 
-        # Infos boutique et numéro
-        header_data = [
-            [
-                Paragraph(f"<font size=12><b>{shop_name}</b></font>", self.styles['Normal']),
-                Paragraph(f"<b>{invoice.numero}</b>", self.styles['RightAligned'])
-            ]
-        ]
-        header_table = Table(header_data, colWidths=[12*cm, 4*cm])
+        header_data = [[
+            Paragraph(header_left_text, self.styles['Normal']),
+            Paragraph(header_right_text, self.styles['RightAligned'])
+        ]]
+
+        header_table = Table(header_data, colWidths=[10*cm, 6*cm])
         header_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e5a96')),  # Bleu professionnel
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('PADDING', (0, 0), (-1, 0), 15),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ]))
         elements.append(header_table)
+        elements.append(Spacer(1, 15))
 
-        # Infos entreprise supplémentaires (si disponible)
+        # ========================================
+        # SECTION INFOS (Émetteur + Détails)
+        # ========================================
+
+        # Infos émetteur (gauche)
+        emitter_text = '<font size=9><b>ÉMETTEUR</b></font><br/>'
         if user and user.company_name:
-            elements.append(Spacer(1, 10))
-            company_info = f"<b>{user.company_name}</b>"
-            if user.company_address:
-                company_info += f"<br/>{user.company_address}"
-            if user.company_phone or user.company_email:
-                company_info += "<br/>"
-                if user.company_phone:
-                    company_info += f"Tél: {user.company_phone}"
-                if user.company_email:
-                    company_info += f" | Email: {user.company_email}"
-            if user.company_registration or user.company_tax_id:
-                company_info += "<br/><font size=8>"
-                if user.company_registration:
-                    company_info += f"RCCM: {user.company_registration} "
-                if user.company_tax_id:
-                    company_info += f"IFU: {user.company_tax_id}"
-                company_info += "</font>"
-            
-            elements.append(Paragraph(company_info, self.styles['Normal']))
-        
-        elements.append(Spacer(1, 20))
-        
-        # Infos facture et client
-        invoice_data = [
-            ['Date:', invoice.date.strftime('%d/%m/%Y'), 'Client:', invoice.client_name],
-            ['Statut:', invoice.status.capitalize(), '', '']
-        ]
-        invoice_table = Table(invoice_data, colWidths=[3*cm, 5*cm, 3*cm, 5*cm])
-        invoice_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            emitter_text += f'<font size=10><b>{user.company_name}</b></font><br/>'
+        if user and user.company_address:
+            emitter_text += f'{user.company_address}<br/>'
+        if user and user.company_phone:
+            emitter_text += f'Tél: {user.company_phone}<br/>'
+        if user and user.company_email:
+            emitter_text += f'<font color="blue">{user.company_email}</font><br/>'
+        if user and (user.company_registration or user.company_tax_id):
+            emitter_text += '<font size=7.5>'
+            if user.company_registration:
+                emitter_text += f'RCCM: {user.company_registration}<br/>'
+            if user.company_tax_id:
+                emitter_text += f'IFU: {user.company_tax_id}'
+            emitter_text += '</font>'
+
+        # Détails facture (droite)
+        details_text = ''
+        # Statut badge
+        status_colors = {
+            'brouillon': '#95a5a6',  # Gris
+            'envoyée': '#3498db',    # Bleu
+            'payée': '#27ae60',       # Vert
+            'annulée': '#e74c3c'      # Rouge
+        }
+        status_color = status_colors.get(invoice.status, '#95a5a6')
+        status_text = invoice.status.upper()
+
+        details_text = f'''
+        <font size=9><b>DÉTAILS</b></font><br/>
+        <br/>
+        <font size=8><b>Date:</b> {invoice.date.strftime('%d/%m/%Y')}</font><br/>
+        <font size=8><b>Statut:</b> <font color="{status_color}"><b>● {status_text}</b></font></font><br/>
+        <br/>
+        <font size=9><b>FACTURÉ À</b></font><br/>
+        <font size=10><b>{invoice.client_name}</b></font>
+        '''
+
+        # Layout deux colonnes
+        info_data = [[
+            Paragraph(emitter_text, self.styles['Normal']),
+            Paragraph(details_text, self.styles['Normal'])
+        ]]
+
+        info_table = Table(info_data, colWidths=[9*cm, 7*cm])
+        info_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BORDER', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8f9fa')),
+            ('PADDING', (0, 0), (-1, -1), 12),
         ]))
-        elements.append(invoice_table)
+        elements.append(info_table)
         elements.append(Spacer(1, 20))
-        
-        # Tableau des articles
+
+        # ========================================
+        # TABLEAU DES ARTICLES
+        # ========================================
         data = [['Produit', 'Quantité', 'Prix unitaire', 'Total']]
-        for item in invoice.items:
+        for item in invoice.items.all():
             data.append([
                 item.product_name,
                 str(item.quantity),
                 f"{item.unit_price:.0f} FCFA",
                 f"{item.total:.0f} FCFA"
             ])
-        
-        # Total
-        data.append(['', '', 'TOTAL:', f"{invoice.total:.0f} FCFA"])
-        
-        table = self._create_table(data, col_widths=[7*cm, 2.5*cm, 3.5*cm, 3.5*cm])
+
+        # Ligne total
+        data.append([
+            Paragraph('<b>TOTAL GÉNÉRAL</b>', self.styles['Normal']),
+            '',
+            '',
+            Paragraph(f'<b>{invoice.total:.0f} FCFA</b>', self.styles['RightAligned'])
+        ])
+
+        table = Table(data, colWidths=[7*cm, 2.5*cm, 3.5*cm, 3.5*cm])
+        table.setStyle(TableStyle([
+            # En-tête bleu
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e5a96')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+
+            # Ligne total
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#ecf0f1')),
+            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#1e5a96')),
+            ('ALIGN', (0, -1), (0, -1), 'LEFT'),
+            ('ALIGN', (1, -1), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, -1), (-1, -1), 11),
+            ('BOTTOMPADDING', (0, -1), (-1, -1), 12),
+            ('TOPPADDING', (0, -1), (-1, -1), 12),
+
+            # Corps du tableau
+            ('BACKGROUND', (0, 1), (-1, -2), colors.white),
+            ('TEXTCOLOR', (0, 1), (-1, -2), colors.HexColor('#2c3e50')),
+            ('ALIGN', (0, 1), (0, -2), 'LEFT'),
+            ('ALIGN', (1, 1), (-1, -2), 'CENTER'),
+            ('FONTSIZE', (0, 1), (-1, -2), 9),
+            ('BOTTOMPADDING', (0, 1), (-1, -2), 10),
+            ('TOPPADDING', (0, 1), (-1, -2), 10),
+
+            # Alternance couleurs
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
+
+            # Grille
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+            ('LINEABOVE', (0, -1), (-1, -1), 1.5, colors.HexColor('#1e5a96')),
+        ]))
         elements.append(table)
-        
-        # Notes
+
+        # Notes si présent
         if invoice.notes:
-            elements.append(Spacer(1, 20))
-            elements.append(Paragraph(f"<b>Notes:</b> {invoice.notes}", self.styles['Normal']))
-        
-        # Pied de page professionnel
-        elements.append(Spacer(1, 40))
-        footer_text = f"Facture générée par SmartCaisse le {datetime.now().strftime('%d/%m/%Y à %H:%M')}"
+            elements.append(Spacer(1, 15))
+            notes_text = f"<b>📝 Notes:</b> {invoice.notes}"
+            elements.append(Paragraph(notes_text, self.styles['Normal']))
+
+        # Pied de page
+        elements.append(Spacer(1, 30))
+        footer_text = f"<font size=8 color='#7f8c8d'>Facture générée par SmartCaisse le {datetime.now().strftime('%d/%m/%Y à %H:%M')}"
         if user and user.company_website:
             footer_text += f" | {user.company_website}"
+        footer_text += "</font>"
         elements.append(Paragraph(footer_text, self.styles['CustomSubtitle']))
-        
+
         doc.build(elements)
         buffer.seek(0)
         return buffer
