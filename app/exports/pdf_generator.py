@@ -372,7 +372,7 @@ class PDFGenerator:
         """Génère un PDF de facture professionnel avec mise en page moderne"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
-                               rightMargin=0.3*cm, leftMargin=0.3*cm,
+                               rightMargin=0*cm, leftMargin=0*cm,
                                topMargin=0.8*cm, bottomMargin=1.5*cm)
         elements = []
 
