@@ -409,17 +409,17 @@ class PDFGenerator:
         # ========================================
 
         # Infos émetteur (gauche)
-        emitter_text = '<font size=9><b>ÉMETTEUR</b></font><br/>'
+        emitter_text = '<font size=9><b>ÉMETTEUR</b></font><br/><br/>'
         if user and user.company_name:
-            emitter_text += f'<font size=10><b>{user.company_name}</b></font><br/>'
+            emitter_text += f'<font size=11><b>{user.company_name}</b></font><br/>'
         if user and user.company_address:
             emitter_text += f'{user.company_address}<br/>'
         if user and user.company_phone:
             emitter_text += f'{user.company_phone}<br/>'
         if user and user.company_email:
-            emitter_text += f'<font color="blue">{user.company_email}</font><br/>'
+            emitter_text += f'<font color="blue">{user.company_email}</font><br/><br/>'
         if user and (user.company_registration or user.company_tax_id):
-            emitter_text += '<font size=7.5>'
+            emitter_text += '<font size=8>'
             if user.company_registration:
                 emitter_text += f'RCCM : {user.company_registration}'
             if user.company_registration and user.company_tax_id:
