@@ -381,10 +381,10 @@ class PDFGenerator:
                      (user.username if user else 'SmartCaisse'))
 
         # ========================================
-        # EN-TÊTE PROFESSIONNEL (Bande bleue claire)
+        # EN-TÊTE PROFESSIONNEL (Bande bleue)
         # ========================================
-        header_left_text = f"<font size=14><b>{shop_name}</b></font>"
-        header_right_text = f"<font size=16><b>{invoice.numero}</b></font>"
+        header_left_text = f"<font size=9>FACTURE</font><br/><font size=16><b>{shop_name}</b></font>"
+        header_right_text = f"<font size=9>Numéro de facture</font><br/><font size=14><b>{invoice.numero}</b></font>"
 
         header_data = [[
             Paragraph(header_left_text, self.styles['Normal']),
@@ -393,15 +393,16 @@ class PDFGenerator:
 
         header_table = Table(header_data, colWidths=[10*cm, 6*cm])
         header_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),  # Bleu clair
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, 0), 'TOP'),
             ('PADDING', (0, 0), (-1, 0), 12),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ]))
         elements.append(header_table)
-        elements.append(Spacer(1, 12))
+        elements.append(Spacer(1, 15))
 
         # ========================================
         # SECTION INFOS (Émetteur + Détails)
@@ -414,24 +415,37 @@ class PDFGenerator:
         if user and user.company_address:
             emitter_text += f'{user.company_address}<br/>'
         if user and user.company_phone:
-            emitter_text += f'Tél: {user.company_phone}<br/>'
+            emitter_text += f'{user.company_phone}<br/>'
         if user and user.company_email:
             emitter_text += f'<font color="blue">{user.company_email}</font><br/>'
         if user and (user.company_registration or user.company_tax_id):
             emitter_text += '<font size=7.5>'
             if user.company_registration:
-                emitter_text += f'RCCM: {user.company_registration}<br/>'
+                emitter_text += f'RCCM : {user.company_registration}'
+            if user.company_registration and user.company_tax_id:
+                emitter_text += ' | '
             if user.company_tax_id:
-                emitter_text += f'IFU: {user.company_tax_id}'
+                emitter_text += f'IFU : {user.company_tax_id}'
             emitter_text += '</font>'
 
-        # Détails facture (droite)
-        details_text = f'''<font size=9><b>DÉTAILS</b></font><br/>
-Date: {invoice.date.strftime('%d/%m/%Y')}<br/>
-Statut: <font color="#3498db"><b>● {invoice.status.upper()}</b></font><br/>
-<br/>
-<font size=9><b>FACTURÉ À</b></font><br/>
-<font size=10><b>{invoice.client_name}</b></font>'''
+        # Détails client et statut (droite)
+        details_text = f'<font size=9><b>FACTURÉ À</b></font><br/><font size=10><b>{invoice.client_name}</b></font><br/><br/>'
+        details_text += f'<font size=9><b>DATE</b></font><br/>{invoice.date.strftime("%d/%m/%Y")}<br/><br/>'
+        details_text += f'<font size=9><b>STATUT</b></font><br/>'
+
+        # Colorer le statut
+        status_lower = invoice.status.lower()
+        if status_lower == 'envoyée':
+            status_color = '#27ae60'  # Vert
+            status_text = 'Envoyée'
+        elif status_lower == 'brouillon':
+            status_color = '#3498db'  # Bleu
+            status_text = 'Brouillon'
+        else:
+            status_color = '#95a5a6'  # Gris
+            status_text = invoice.status.capitalize()
+
+        details_text += f'<font color="{status_color}"><b>{status_text}</b></font>'
 
         # Layout deux colonnes
         info_data = [[
@@ -442,9 +456,10 @@ Statut: <font color="#3498db"><b>● {invoice.status.upper()}</b></font><br/>
         info_table = Table(info_data, colWidths=[9*cm, 7*cm])
         info_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('BORDER', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8f9fa')),
-            ('PADDING', (0, 0), (-1, -1), 12),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 0, colors.white),
+            ('PADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(info_table)
         elements.append(Spacer(1, 15))
