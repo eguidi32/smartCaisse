@@ -372,18 +372,13 @@ class PDFGenerator:
         """Génère un PDF de facture professionnel avec mise en page moderne"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
-                               rightMargin=0*cm, leftMargin=0*cm,
-                               topMargin=0.8*cm, bottomMargin=1.5*cm)
+                               rightMargin=1.5*cm, leftMargin=1.5*cm,
+                               topMargin=1*cm, bottomMargin=1.5*cm)
         elements = []
 
-        # Nom de la boutique: priorité au username de l'utilisateur
-        # (company_name est optionnel pour les boutiques professionnelles)
-        if user:
-            shop_name = user.username  # Utiliser le username par défaut
-            if user.company_name and user.company_name.strip():
-                shop_name = user.company_name  # Utiliser company_name s'il est défini et non vide
-        else:
-            shop_name = 'SmartCaisse'
+        # Nom de la boutique (company_name ou username)
+        shop_name = (user.company_name if user and user.company_name else
+                     (user.username if user else 'SmartCaisse'))
 
         # ========================================
         # EN-TÊTE PROFESSIONNEL (Bande bleue claire)
@@ -396,13 +391,13 @@ class PDFGenerator:
             Paragraph(header_right_text, self.styles['RightAligned'])
         ]]
 
-        header_table = Table(header_data)
+        header_table = Table(header_data, colWidths=[10*cm, 6*cm])
         header_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),  # Bleu clair
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-            ('PADDING', (0, 0), (-1, 0), 16),  # Augmenté de 12 à 16
+            ('PADDING', (0, 0), (-1, 0), 12),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ]))
         elements.append(header_table)
@@ -474,7 +469,7 @@ Statut: <font color="#3498db"><b>● {invoice.status.upper()}</b></font><br/>
             f"{invoice.total:.0f} FCFA"
         ])
 
-        table = Table(data, colWidths=[7*cm, 2.5*cm, 3.5*cm, 3.5*cm])
+        table = Table(data, colWidths=[7*cm, 2.5*cm, 3.5*cm, 3.5*cm])  # Largeur totale environ 16cm pour les marges 1.5cm
         table.setStyle(TableStyle([
             # En-tête bleu clair
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
