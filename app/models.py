@@ -674,12 +674,20 @@ class Invoice(db.Model):
         """Génère un numéro de facture unique pour l'utilisateur"""
         from datetime import datetime
         year = datetime.utcnow().year
-        # Compte les factures existantes pour cet utilisateur cette année
-        count = Invoice.query.filter(
+        # Reprend la plus grande sequence existante pour eviter les doublons apres suppression.
+        prefix = f'FAC-{year}-'
+        numeros = Invoice.query.with_entities(Invoice.numero).filter(
             Invoice.user_id == user_id,
-            Invoice.numero.like(f'FAC-{year}-%')
-        ).count()
-        return f'FAC-{year}-{count + 1:04d}'
+            Invoice.numero.like(f'{prefix}%')
+        ).all()
+
+        max_sequence = 0
+        for (numero,) in numeros:
+            suffix = numero.replace(prefix, '', 1)
+            if suffix.isdigit():
+                max_sequence = max(max_sequence, int(suffix))
+
+        return f'{prefix}{max_sequence + 1:04d}'
 
     def calculate_total(self):
         """Recalcule le total à partir des items"""

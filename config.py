@@ -12,6 +12,14 @@ load_dotenv()
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 
+def env_bool(name, default=False):
+    """Lit une variable booleenne depuis l'environnement."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
 class Config:
     """Configuration principale de l'application"""
 
@@ -84,7 +92,8 @@ class Config:
     # ============================================
 
     # HTTPS enforcement (seulement en production)
-    FORCE_HTTPS = os.environ.get('FLASK_ENV') == 'production'
+    FORCE_HTTPS = env_bool('FORCE_HTTPS', FLASK_ENV == 'production')
+    TRUST_PROXY_HEADERS = env_bool('TRUST_PROXY_HEADERS', False)
 
     # CSRF Protection
     WTF_CSRF_ENABLED = True

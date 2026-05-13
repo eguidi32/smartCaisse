@@ -4,12 +4,13 @@ Routes pour la gestion des dettes clients
 - Dettes : liste par client, ajout
 - Paiements : liste par dette, ajout
 """
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from app import db
-from app.models import Client, Dette, Paiement
+from app.models import Client, Dette, Paiement, Invoice
 from app.utils import log_audit
 
 # Création du Blueprint
@@ -241,8 +242,29 @@ def delete_client(id):
     client = Client.query.filter_by(id=id, user_id=current_user.id).first_or_404()
 
     nom = client.nom
-    db.session.delete(client)
-    db.session.commit()
+    try:
+        linked_invoices = Invoice.query.filter_by(
+            client_id=client.id,
+            user_id=current_user.id
+        ).all()
+
+        for invoice in linked_invoices:
+            invoice.client_id = None
+
+        db.session.delete(client)
+        db.session.commit()
+
+        log_audit(
+            'delete',
+            'Client',
+            entity_id=id,
+            new_value=f'deleted_client_name={nom}, detached_invoices={len(linked_invoices)}'
+        )
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f'Erreur suppression client {id}: {e}')
+        flash('Impossible de supprimer ce client. Veuillez réessayer ou vérifier les factures liées.', 'danger')
+        return redirect(url_for('debts.edit_client', id=id))
 
     flash(f'Client "{nom}" supprimé.', 'info')
     return redirect(url_for('debts.list_clients'))

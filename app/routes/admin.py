@@ -12,8 +12,9 @@ from flask_login import login_required, current_user
 from flask_mail import Message
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from app import db, mail
-from app.models import User, Transaction, Client, Dette, Paiement, AuditLog
+from app.models import User, Transaction, Client, Dette, Paiement, AuditLog, Product, ProductHistory, StockMovement, Invoice
 from app.utils import log_audit
 
 # Création du Blueprint
@@ -30,6 +31,13 @@ def admin_required(f):
             return redirect(url_for('main.dashboard'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+def format_grouped_date(value):
+    """Normalise les dates retournees par func.date selon le moteur SQL."""
+    if hasattr(value, 'strftime'):
+        return value.strftime('%Y-%m-%d')
+    return str(value)[:10]
 
 
 def generate_temp_password(length=8):
@@ -366,7 +374,7 @@ def analytics_transactions():
     # Formater les données
     dates = {}
     for transaction in transactions:
-        date_str = transaction.date.strftime('%Y-%m-%d')
+        date_str = format_grouped_date(transaction.date)
         if date_str not in dates:
             dates[date_str] = {'recette': 0, 'depense': 0, 'count_recette': 0, 'count_depense': 0}
 
@@ -403,9 +411,9 @@ def analytics_users():
 
     # Formater les données
     dates = {}
-    cumulative = 0
+    cumulative = User.query.filter(User.created_at < start_date).count()
     for user in users:
-        date_str = user.date.strftime('%Y-%m-%d')
+        date_str = format_grouped_date(user.date)
         cumulative += user.count
         dates[date_str] = {'new': user.count, 'total': cumulative}
 
@@ -776,11 +784,48 @@ def delete_user(id):
         return redirect(url_for('admin.user_detail', id=id))
 
     username = user.username
-    db.session.delete(user)
-    db.session.commit()
+    try:
+        client_ids = [
+            client_id for (client_id,) in Client.query.with_entities(Client.id).filter_by(user_id=id).all()
+        ]
+        product_ids = [
+            product_id for (product_id,) in Product.query.with_entities(Product.id).filter_by(user_id=id).all()
+        ]
 
-    # Logger l'action
-    log_audit('delete', 'User', entity_id=id, new_value=f'deleted_username={username}')
+        if client_ids:
+            Invoice.query.filter(Invoice.client_id.in_(client_ids)).update(
+                {Invoice.client_id: None},
+                synchronize_session=False
+            )
+
+        for invoice in Invoice.query.filter_by(user_id=id).all():
+            db.session.delete(invoice)
+
+        if product_ids:
+            ProductHistory.query.filter(ProductHistory.product_id.in_(product_ids)).delete(
+                synchronize_session=False
+            )
+
+        ProductHistory.query.filter_by(changed_by_id=id).delete(synchronize_session=False)
+        StockMovement.query.filter_by(created_by_id=id).update(
+            {StockMovement.created_by_id: None},
+            synchronize_session=False
+        )
+        AuditLog.query.filter_by(user_id=id).update(
+            {AuditLog.user_id: None},
+            synchronize_session=False
+        )
+
+        db.session.delete(user)
+        db.session.commit()
+
+        # Logger l'action
+        log_audit('delete', 'User', entity_id=id, new_value=f'deleted_username={username}')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f'User deletion failed for {id}: {e}')
+        flash('Impossible de supprimer cet utilisateur. Certaines données liées ont bloqué la suppression.', 'danger')
+        return redirect(url_for('admin.user_detail', id=id))
 
     flash(f'Utilisateur "{username}" supprimé.', 'info')
     return redirect(url_for('admin.list_users'))

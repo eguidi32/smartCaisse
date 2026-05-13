@@ -25,28 +25,31 @@ inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 # HELPERS
 # ============================================
 
-def update_product_stock_cache(product_id):
-    """Mettre à jour le cache du stock pour un produit"""
-    from sqlalchemy.orm import Session
-    product = db.session.query(Product).filter_by(id=product_id).first()
-    if not product:
-        return
-
-    # Query entries - handle both 'entree' and 'entrée' variants
+def calculate_product_stock(product_id):
+    """Calcule le stock actuel directement depuis les mouvements."""
     entries = db.session.query(func.sum(StockMovement.quantity)).filter(
         StockMovement.product_id == product_id,
         StockMovement.type.in_(['entree', 'entrée'])
     ).scalar() or 0
 
-    # Query exits - handle both 'sortie' variants
     exits = db.session.query(func.sum(StockMovement.quantity)).filter(
         StockMovement.product_id == product_id,
         StockMovement.type.in_(['sortie'])
     ).scalar() or 0
 
-    product.stock_cache = entries - exits
+    return entries - exits
+
+
+def update_product_stock_cache(product_id):
+    """Mettre à jour le cache du stock pour un produit"""
+    product = db.session.query(Product).filter_by(id=product_id).first()
+    if not product:
+        return None
+
+    product.stock_cache = calculate_product_stock(product_id)
     product.stock_cache_updated_at = datetime.utcnow()
     db.session.commit()
+    return product.stock_cache
 
 
 def track_product_change(product_id, field, old_value, new_value):
@@ -446,6 +449,7 @@ def delete_product(id):
 
     try:
         name = product.name
+        ProductHistory.query.filter_by(product_id=product.id).delete(synchronize_session=False)
         db.session.delete(product)
         db.session.commit()
 

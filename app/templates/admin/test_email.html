@@ -15,6 +15,7 @@
                     </div>
 
                     <form method="POST" class="needs-validation">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label for="test_email" class="form-label">Adresse email de test</label>
                             <input type="email"

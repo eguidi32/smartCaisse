@@ -13,6 +13,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
+from werkzeug.middleware.proxy_fix import ProxyFix
 try:
     from flask_talisman import Talisman
     TALISMAN_AVAILABLE = True
@@ -92,6 +93,39 @@ def setup_logging(app):
     app.logger.info('SmartCaisse startup')
 
 
+def ensure_database_schema(app):
+    """
+    Applique les petites migrations de compatibilite necessaires aux bases
+    SQLite deja existantes. db.create_all() ne modifie pas les tables existantes.
+    """
+    from sqlalchemy import inspect, text
+    from app.models import User
+
+    inspector = inspect(db.engine)
+    if not inspector.has_table(User.__tablename__):
+        return
+
+    existing_columns = {
+        column['name']
+        for column in inspector.get_columns(User.__tablename__)
+    }
+
+    migrations = {
+        'failed_login_attempts': "ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0",
+        'locked_until': "ALTER TABLE users ADD COLUMN locked_until DATETIME",
+    }
+
+    applied = []
+    for column_name, statement in migrations.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+            applied.append(column_name)
+
+    if applied:
+        db.session.commit()
+        app.logger.info(f'Database schema migrated: added {", ".join(applied)}')
+
+
 def create_app(config_class=Config):
     """
     Factory pattern pour créer l'application Flask
@@ -107,6 +141,17 @@ def create_app(config_class=Config):
 
     # Configuration du logging
     setup_logging(app)
+
+    # Oracle/Nginx/Gunicorn: faire confiance aux en-tetes du proxy local.
+    if app.config.get('TRUST_PROXY_HEADERS'):
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=1,
+            x_proto=1,
+            x_host=1,
+            x_port=1,
+        )
+        app.logger.info('Proxy headers enabled (ProxyFix)')
 
     # Initialisation des extensions avec l'app
     db.init_app(app)
@@ -157,17 +202,9 @@ def create_app(config_class=Config):
 
     # Création des tables si elles n'existent pas
     with app.app_context():
-        # Only create tables if they don't exist (check for a key table)
-        # This prevents unnecessary recreations on every app startup
-        try:
-            from app.models import AuditLog
-            # If we can query the table, it exists
-            AuditLog.query.first()
-            app.logger.info('Database tables already exist')
-        except Exception:
-            # Tables don't exist, create them
-            db.create_all()
-            app.logger.info('Database tables created')
+        db.create_all()
+        ensure_database_schema(app)
+        app.logger.info('Database schema ready')
 
 
     # Initialiser le scheduler pour tâches périodiques (désactivé en production PythonAnywhere)

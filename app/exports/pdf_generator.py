@@ -10,6 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from xml.sax.saxutils import escape
 
 
 class PDFGenerator:
@@ -377,61 +378,85 @@ class PDFGenerator:
         elements = []
 
         # Nom de la boutique (company_name ou username)
-        shop_name = (user.company_name if user and user.company_name else
-                     (user.username if user else 'SmartCaisse'))
+        shop_name = escape(user.company_name if user and user.company_name else
+                           (user.username if user else 'SmartCaisse'))
+        invoice_number = escape(invoice.numero)
+        client_name = escape(invoice.client_name)
 
         # ========================================
         # EN-TÊTE PROFESSIONNEL (Bande bleue)
         # ========================================
-        header_left_text = f"<font size=9>FACTURE</font><br/><font size=16><b>{shop_name}</b></font>"
-        header_right_text = f"<font size=9>Numéro de facture</font><br/><font size=14><b>{invoice.numero}</b></font>"
+        header_left_text = (
+            f"<font color='#d8ecff' size=8>FACTURE</font><br/>"
+            f"<font color='white' size=18><b>{shop_name}</b></font>"
+        )
+        header_right_text = (
+            "<font color='#d8ecff' size=8>N° DE FACTURE</font><br/>"
+            f"<font color='white' size=16><b>{invoice_number}</b></font>"
+        )
+
+        header_left_style = ParagraphStyle(
+            name='InvoiceHeaderLeft',
+            parent=self.styles['Normal'],
+            leading=18,
+            textColor=colors.white
+        )
+        header_right_style = ParagraphStyle(
+            name='InvoiceHeaderRight',
+            parent=self.styles['Normal'],
+            leading=17,
+            alignment=TA_RIGHT,
+            textColor=colors.white
+        )
 
         header_data = [[
-            Paragraph(header_left_text, self.styles['Normal']),
-            Paragraph(header_right_text, self.styles['RightAligned'])
+            Paragraph(header_left_text, header_left_style),
+            Paragraph(header_right_text, header_right_style)
         ]]
 
-        header_table = Table(header_data, colWidths=[10*cm, 6*cm])
+        header_table = Table(header_data, colWidths=[11*cm, 7*cm])
         header_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f6fb2')),
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, 0), 'TOP'),
-            ('PADDING', (0, 0), (-1, 0), 12),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, 0), 14),
+            ('RIGHTPADDING', (0, 0), (-1, 0), 14),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 14),
+            ('LINEBELOW', (0, 0), (-1, 0), 3, colors.HexColor('#f2c94c')),
         ]))
         elements.append(header_table)
-        elements.append(Spacer(1, 15))
+        elements.append(Spacer(1, 18))
 
         # ========================================
         # SECTION INFOS (Émetteur + Détails)
         # ========================================
 
         # Infos émetteur (gauche)
-        emitter_text = '<font size=9><b>ÉMETTEUR</b></font><br/><br/>'
+        emitter_text = '<font color="#1f6fb2" size=8><b>ÉMETTEUR</b></font><br/><br/>'
         if user and user.company_name:
-            emitter_text += f'<font size=11><b>{user.company_name}</b></font><br/>'
+            emitter_text += f'<font size=12><b>{escape(user.company_name)}</b></font><br/><font size=2>&#160;</font><br/>'
         if user and user.company_address:
-            emitter_text += f'{user.company_address}<br/>'
+            emitter_text += f'{escape(user.company_address)}<br/>'
         if user and user.company_phone:
-            emitter_text += f'{user.company_phone}<br/>'
+            emitter_text += f'{escape(user.company_phone)}<br/>'
         if user and user.company_email:
-            emitter_text += f'<font color="blue">{user.company_email}</font><br/><br/>'
+            emitter_text += f'<font color="#1f6fb2">{escape(user.company_email)}</font><br/><br/>'
         if user and (user.company_registration or user.company_tax_id):
-            emitter_text += '<font size=8>'
+            emitter_text += '<font color="#4b5563" size=8>'
             if user.company_registration:
-                emitter_text += f'RCCM : {user.company_registration}'
+                emitter_text += f'RCCM : {escape(user.company_registration)}'
             if user.company_registration and user.company_tax_id:
                 emitter_text += ' | '
             if user.company_tax_id:
-                emitter_text += f'IFU : {user.company_tax_id}'
+                emitter_text += f'IFU : {escape(user.company_tax_id)}'
             emitter_text += '</font>'
 
         # Détails client et statut (droite)
-        details_text = f'<font size=9><b>FACTURÉ À</b></font><br/><font size=10><b>{invoice.client_name}</b></font><br/><br/>'
-        details_text += f'<font size=9><b>DATE</b></font><br/>{invoice.date.strftime("%d/%m/%Y")}<br/><br/>'
-        details_text += f'<font size=9><b>STATUT</b></font><br/>'
+        details_text = f'<font color="#1f6fb2" size=8><b>FACTURÉ À</b></font><br/><font size=12><b>{client_name}</b></font><br/><br/>'
+        details_text += f'<font color="#6b7280" size=8><b>DATE</b></font><br/><font size=10>{invoice.date.strftime("%d/%m/%Y")}</font><br/><br/>'
+        details_text += f'<font color="#6b7280" size=8><b>STATUT</b></font><br/>'
 
         # Colorer le statut
         status_lower = invoice.status.lower()
@@ -453,16 +478,21 @@ class PDFGenerator:
             Paragraph(details_text, self.styles['Normal'])
         ]]
 
-        info_table = Table(info_data, colWidths=[9*cm, 7*cm])
+        info_table = Table(info_data, colWidths=[10.2*cm, 7.8*cm])
         info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fbff')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('ALIGN', (1, 0), (-1, -1), 'LEFT'),
-            ('GRID', (0, 0), (-1, -1), 0, colors.white),
-            ('PADDING', (0, 0), (-1, -1), 0),
+            ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#d7e7f5')),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#d7e7f5')),
+            ('LEFTPADDING', (0, 0), (-1, -1), 14),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 14),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
         ]))
         elements.append(info_table)
-        elements.append(Spacer(1, 15))
+        elements.append(Spacer(1, 20))
 
         # ========================================
         # TABLEAU DES ARTICLES
@@ -484,7 +514,7 @@ class PDFGenerator:
             f"{invoice.total:.0f} FCFA"
         ])
 
-        table = Table(data, colWidths=[7*cm, 2.5*cm, 3.5*cm, 3.5*cm])  # Largeur totale environ 16cm pour les marges 1.5cm
+        table = Table(data, colWidths=[8*cm, 3*cm, 3.5*cm, 3.5*cm])
         table.setStyle(TableStyle([
             # En-tête bleu clair
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
@@ -527,6 +557,40 @@ class PDFGenerator:
             elements.append(Spacer(1, 15))
             notes_text = f"<b>Notes:</b> {invoice.notes}"
             elements.append(Paragraph(notes_text, self.styles['Normal']))
+
+        # Signatures et cachet
+        elements.append(Spacer(1, 22))
+        signature_title_style = ParagraphStyle(
+            name='SignatureTitle',
+            parent=self.styles['Normal'],
+            fontSize=9,
+            leading=11,
+            textColor=colors.HexColor('#4b5563'),
+            alignment=TA_CENTER
+        )
+
+        signature_data = [
+            [
+                Paragraph('<b>Signature du client</b>', signature_title_style),
+                '',
+                Paragraph('<b>Signature et cachet</b>', signature_title_style)
+            ]
+        ]
+        signature_table = Table(
+            signature_data,
+            colWidths=[8.5*cm, 1*cm, 8.5*cm],
+            rowHeights=[0.9*cm]
+        )
+        signature_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(signature_table)
 
         # Pied de page
         elements.append(Spacer(1, 25))

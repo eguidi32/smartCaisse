@@ -27,6 +27,7 @@ __pycache__/
 
 # Logs
 *.log
+invoice_header_preview.pdf
 
 # OS
 .DS_Store
